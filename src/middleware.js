@@ -11,15 +11,19 @@ export function middleware(request) {
     '/signup', 
     '/signup/role-selection', 
     '/signup/subscription',
-    '/job-hunter/personal-details',
-    '/job-hunter/personal-summary',
-    '/job-hunter/work-experience',
-    '/job-hunter/availability',
+    '/employee/personal-details',
+    '/employee/personal-summary',
+    '/employee/work-experience',
+    '/employee/availability',
+    '/employer/personal-details',
+    '/employer/business-details',
+    '/employer/business-summary',
+    '/employer/availability',
   ];
   const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
 
   // Protected routes
-  const protectedRoutes = ['/dashboard', '/job-hunter/search-jobs'];
+  const protectedRoutes = ['/dashboard', '/employee/search-jobs'];
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
 
   // If trying to access protected route without token
@@ -31,9 +35,9 @@ export function middleware(request) {
   if (token && (pathname === '/login' || pathname === '/signup')) {
     const decoded = verifyToken(token);
     if (decoded) {
-      if (decoded.role === 'job-hunter') {
-        return NextResponse.redirect(new URL('/job-hunter/search-jobs', request.url));
-      } else if (decoded.role === 'head-hunter') {
+      if (decoded.role === 'employee') {
+        return NextResponse.redirect(new URL('/employee/search-jobs', request.url));
+      } else if (decoded.role === 'employer') {
         return NextResponse.redirect(new URL('/dashboard', request.url));
       }
     }

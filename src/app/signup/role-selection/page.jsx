@@ -21,10 +21,16 @@ export default function RoleSelectionPage() {
 
     // Route based on selection
     if (selectedGoal === 'find-work') {
-      // Job Hunter flow
-      router.push('/job-hunter/personal-details');
+      // Employee flow - goes to personal details then job-specific pages
+      sessionStorage.setItem('userRole', 'employee');
+      router.push('/employee/personal-details');
+    } else if (selectedGoal === 'find-workers') {
+      // Employer flow - goes to personal details then business pages
+      sessionStorage.setItem('userRole', 'employer');
+      router.push('/employer/personal-details');
     } else {
-      // Head Hunter flow (find-workers or search-companies)
+      // Search companies - simple signup with subscription
+      sessionStorage.setItem('userRole', 'employer');
       router.push('/signup/subscription');
     }
   };

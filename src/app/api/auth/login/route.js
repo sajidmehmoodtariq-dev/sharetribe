@@ -8,9 +8,15 @@ export async function POST(request) {
   try {
     const body = await request.json();
     const { email, password } = body;
+    
+    console.log('=== Login Attempt ===');
+    console.log('Email:', email);
+    console.log('Password provided:', password ? 'Yes' : 'No');
+    console.log('Password length:', password?.length);
 
     // Validate required fields
     if (!email || !password) {
+      console.error('Missing email or password');
       return NextResponse.json(
         { error: 'Email and password are required' },
         { status: 400 }
@@ -24,16 +30,30 @@ export async function POST(request) {
 
     // Find user by email
     const user = await usersCollection.findOne({ email });
+    console.log('User found:', user ? 'Yes' : 'No');
+    
     if (!user) {
+      console.error('User not found for email:', email);
       return NextResponse.json(
         { error: 'Invalid credentials' },
         { status: 401 }
       );
     }
 
+    console.log('User role:', user.role);
+    console.log('Stored password hash:', user.password?.substring(0, 20) + '...');
+    console.log('Hash starts with $2:', user.password?.startsWith('$2'));
+
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password);
+    console.log('Password valid:', isValidPassword);
+    
     if (!isValidPassword) {
+      console.error('Password comparison failed');
+      // Check if password was stored in plain text by mistake
+      if (password === user.password) {
+        console.error('WARNING: Password stored in plain text!');
+      }
       return NextResponse.json(
         { error: 'Invalid credentials' },
         { status: 401 }

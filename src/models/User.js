@@ -5,11 +5,11 @@ export const UserSchema = {
   password: String, // hashed
   fullName: String,
   mobileNumber: String,
-  role: String, // 'job-hunter' or 'head-hunter'
+  role: String, // 'employee' or 'employer'
   createdAt: Date,
   updatedAt: Date,
 
-  // Job Hunter specific fields
+  // Employee (job seeker) specific fields
   profileImage: String,
   showEmailOnProfile: Boolean,
   showMobileOnProfile: Boolean,
@@ -44,7 +44,7 @@ export const UserSchema = {
     weekNotice: String, // '1-week', '2-weeks', etc.
   },
 
-  // Head Hunter specific fields
+  // Employer specific fields
   subscriptionPackage: {
     type: String, // 'user-plus', 'business', etc.
     price: Number,

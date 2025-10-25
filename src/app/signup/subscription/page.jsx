@@ -33,29 +33,38 @@ export default function SubscriptionPage() {
     try {
       // Get signup data from session storage
       const signupData = JSON.parse(sessionStorage.getItem('signupData') || '{}');
+      const selectedGoal = sessionStorage.getItem('selectedGoal');
 
-      // Update user profile with subscription and goal
-      const response = await fetch('/api/user/profile', {
-        method: 'PATCH',
+      // Create account with subscription
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          selectedGoal: signupData.selectedGoal,
+          email: signupData.email,
+          password: signupData.password,
+          fullName: signupData.fullName,
+          mobileNumber: signupData.mobileNumber || '',
+          role: 'employer',
+          selectedGoal: selectedGoal,
           subscriptionPackage: selectedPackage,
         }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error('Failed to update profile');
+        throw new Error(data.error || 'Signup failed');
       }
 
       // Clear session storage
       sessionStorage.removeItem('signupData');
+      sessionStorage.removeItem('selectedGoal');
 
-      // Redirect to payment or dashboard
+      // Redirect to dashboard
       router.push('/dashboard');
     } catch (error) {
       console.error('Error:', error);
-      alert('Something went wrong. Please try again.');
+      alert(error.message || 'Something went wrong. Please try again.');
     }
   };
 

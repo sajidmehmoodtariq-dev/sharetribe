@@ -26,19 +26,19 @@ export default function WorkExperiencePage() {
   });
 
   useEffect(() => {
-    const data = JSON.parse(sessionStorage.getItem('jobHunterData') || '{}');
+    const data = JSON.parse(sessionStorage.getItem('employeeData') || '{}');
     if (data.workExperience) {
       setFormData(data.workExperience);
     }
   }, []);
 
   const handleContinue = () => {
-    const existingData = JSON.parse(sessionStorage.getItem('jobHunterData') || '{}');
-    sessionStorage.setItem('jobHunterData', JSON.stringify({
+    const existingData = JSON.parse(sessionStorage.getItem('employeeData') || '{}');
+    sessionStorage.setItem('employeeData', JSON.stringify({
       ...existingData,
       workExperience: formData,
     }));
-    router.push('/job-hunter/availability');
+    router.push('/employee/availability');
   };
 
   const toggleArrayItem = (array, item) => {
@@ -201,6 +201,15 @@ export default function WorkExperiencePage() {
                 className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500 min-h-24"
               />
               <Button
+                type="button"
+                onClick={() => {
+                  const existingData = JSON.parse(sessionStorage.getItem('employeeData') || '{}');
+                  sessionStorage.setItem('employeeData', JSON.stringify({
+                    ...existingData,
+                    workExperience: formData,
+                  }));
+                  alert('Work experience saved!');
+                }}
                 variant="outline"
                 className="mt-2 text-emerald-500 border-emerald-500 bg-transparent hover:bg-zinc-800"
               >
@@ -283,6 +292,11 @@ export default function WorkExperiencePage() {
                 ))}
               </div>
               <Button
+                type="button"
+                onClick={() => {
+                  // You can implement a modal or search functionality here
+                  alert('Search industry feature coming soon!');
+                }}
                 variant="outline"
                 className="mt-2 w-full border-zinc-700 text-zinc-400 hover:bg-zinc-800"
               >

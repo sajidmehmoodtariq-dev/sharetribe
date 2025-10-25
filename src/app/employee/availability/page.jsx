@@ -19,7 +19,7 @@ export default function AvailabilityPage() {
   const [date, setDate] = useState(new Date());
 
   useEffect(() => {
-    const data = JSON.parse(sessionStorage.getItem('jobHunterData') || '{}');
+    const data = JSON.parse(sessionStorage.getItem('employeeData') || '{}');
     if (data.availability) {
       setFormData(data.availability);
     }
@@ -27,51 +27,56 @@ export default function AvailabilityPage() {
 
   const handleFinish = async () => {
     try {
-      const jobHunterData = JSON.parse(sessionStorage.getItem('jobHunterData') || '{}');
+      const employeeData = JSON.parse(sessionStorage.getItem('employeeData') || '{}');
+      const signupData = JSON.parse(sessionStorage.getItem('signupData') || '{}');
       
       // Combine all the data
       const completeData = {
-        ...jobHunterData,
+        ...employeeData,
         availability: formData,
-        role: 'job-hunter',
+        role: 'employee',
       };
 
-      // Create account first
+      console.log('Creating employee account...');
+      
+      // Create account with the password from signupData
       const signupResponse = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: completeData.email,
-          password: 'tempPassword123', // You should collect this in the first step
-          fullName: completeData.fullName,
-          mobileNumber: completeData.mobileNumber,
-          role: 'job-hunter',
+          email: signupData.email || completeData.email,
+          password: signupData.password,
+          fullName: signupData.fullName || completeData.fullName,
+          mobileNumber: signupData.mobileNumber || completeData.mobileNumber,
+          role: 'employee',
+          // Include all the profile data
+          ...completeData,
         }),
       });
 
+      const signupResult = await signupResponse.json();
+      console.log('Signup response:', signupResult);
+
       if (!signupResponse.ok) {
-        throw new Error('Failed to create account');
-      }
-
-      // Update profile with all the additional data
-      const updateResponse = await fetch('/api/user/profile', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(completeData),
-      });
-
-      if (!updateResponse.ok) {
-        throw new Error('Failed to update profile');
+        // If user already exists, that's okay - they might have clicked back
+        if (signupResult.error === 'User already exists') {
+          console.log('User already exists, redirecting to login...');
+          alert('Account already exists. Please log in.');
+          router.push('/login');
+          return;
+        }
+        throw new Error(signupResult.error || 'Failed to create account');
       }
 
       // Clear session storage
-      sessionStorage.removeItem('jobHunterData');
+      sessionStorage.removeItem('employeeData');
+      sessionStorage.removeItem('signupData');
 
       // Redirect to search jobs
-      router.push('/job-hunter/search-jobs');
+      router.push('/employee/search-jobs');
     } catch (error) {
       console.error('Error:', error);
-      alert('Something went wrong. Please try again.');
+      alert(error.message || 'Something went wrong. Please try again.');
     }
   };
 
@@ -182,9 +187,17 @@ export default function AvailabilityPage() {
                   {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
                     <button
                       key={day}
+                      type="button"
+                      onClick={() => {
+                        const dateStr = `2025-08-${day.toString().padStart(2, '0')}`;
+                        const updatedDates = formData.selectedDates.includes(dateStr)
+                          ? formData.selectedDates.filter(d => d !== dateStr)
+                          : [...formData.selectedDates, dateStr];
+                        setFormData({ ...formData, selectedDates: updatedDates });
+                      }}
                       className={`
                         p-2 rounded text-sm
-                        ${day >= 22 && day <= 24
+                        ${formData.selectedDates.includes(`2025-08-${day.toString().padStart(2, '0')}`)
                           ? 'bg-emerald-500 text-black font-semibold'
                           : 'text-white hover:bg-zinc-700'
                         }
@@ -226,14 +239,18 @@ export default function AvailabilityPage() {
               </div>
               <div className="mt-3 flex gap-2">
                 <Button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, weekNotice: '1 week' })}
                   variant="outline"
-                  className="border-zinc-700 text-white hover:bg-zinc-800"
+                  className={`border-zinc-700 ${formData.weekNotice === '1 week' ? 'bg-emerald-500 text-black border-emerald-500' : 'text-white hover:bg-zinc-800'}`}
                 >
                   1 Week Notice
                 </Button>
                 <Button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, weekNotice: '2 weeks' })}
                   variant="outline"
-                  className="border-zinc-700 text-white hover:bg-zinc-800"
+                  className={`border-zinc-700 ${formData.weekNotice === '2 weeks' ? 'bg-emerald-500 text-black border-emerald-500' : 'text-white hover:bg-zinc-800'}`}
                 >
                   2 Weeks Notice
                 </Button>

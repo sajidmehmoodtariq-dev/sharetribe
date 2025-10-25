@@ -11,19 +11,19 @@ export default function PersonalSummaryPage() {
   const [personalSummary, setPersonalSummary] = useState('');
 
   useEffect(() => {
-    const data = JSON.parse(sessionStorage.getItem('jobHunterData') || '{}');
+    const data = JSON.parse(sessionStorage.getItem('employeeData') || '{}');
     if (data.personalSummary) {
       setPersonalSummary(data.personalSummary);
     }
   }, []);
 
   const handleContinue = () => {
-    const existingData = JSON.parse(sessionStorage.getItem('jobHunterData') || '{}');
-    sessionStorage.setItem('jobHunterData', JSON.stringify({
+    const existingData = JSON.parse(sessionStorage.getItem('employeeData') || '{}');
+    sessionStorage.setItem('employeeData', JSON.stringify({
       ...existingData,
       personalSummary,
     }));
-    router.push('/job-hunter/work-experience');
+    router.push('/employee/work-experience');
   };
 
   return (

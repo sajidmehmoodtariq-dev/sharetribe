@@ -35,9 +35,9 @@ export default function LoginPage() {
       }
 
       // Redirect based on user role
-      if (data.user.role === 'job-hunter') {
-        router.push('/job-hunter/search-jobs');
-      } else if (data.user.role === 'head-hunter') {
+      if (data.user.role === 'employee') {
+        router.push('/employee/search-jobs');
+      } else if (data.user.role === 'employer') {
         router.push('/dashboard');
       } else {
         router.push('/');

@@ -25,8 +25,8 @@ export default function JobHunterPersonalDetailsPage() {
 
   // Load existing data on mount
   useEffect(() => {
-    // First check if there's existing job hunter data
-    const existingData = sessionStorage.getItem('jobHunterData');
+    // First check if there's existing employee data
+    const existingData = sessionStorage.getItem('employeeData');
     if (existingData) {
       const parsedData = JSON.parse(existingData);
       setFormData(parsedData);
@@ -62,8 +62,8 @@ export default function JobHunterPersonalDetailsPage() {
   };
 
   const handleContinue = () => {
-    // Update both jobHunterData and signupData to keep them in sync
-    sessionStorage.setItem('jobHunterData', JSON.stringify(formData));
+    // Update both employeeData and signupData to keep them in sync
+    sessionStorage.setItem('employeeData', JSON.stringify(formData));
     
     // Also update signupData with the latest info
     const signupData = JSON.parse(sessionStorage.getItem('signupData') || '{}');
@@ -74,7 +74,7 @@ export default function JobHunterPersonalDetailsPage() {
       mobileNumber: formData.mobileNumber,
     }));
     
-    router.push('/job-hunter/personal-summary');
+    router.push('/employee/personal-summary');
   };
 
   return (
