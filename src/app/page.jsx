@@ -1,53 +1,68 @@
+'use client';
+
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
+import Image from "next/image";
+import { useTheme } from "@/components/ThemeProvider";
 
 export default function Home() {
+  const { getBackgroundStyle, getCardClassName, getTextClassName, getSubTextClassName } = useTheme();
   return (
     <div>
-      <div className="min-h-screen bg-black flex items-center justify-center p-4">
-        <div className="w-full max-w-md text-center">
-          {/* Logo */}
-          <div className="inline-flex items-center justify-center mb-8">
-            <svg width="120" height="120" viewBox="0 0 100 100" className="text-white">
-              <text x="50" y="65" fontSize="70" fill="currentColor" textAnchor="middle" fontFamily="monospace" fontWeight="bold">
-                HH
-              </text>
-            </svg>
-          </div>
-          
-          <h1 className="text-white text-4xl font-bold mb-3">Head Huntd</h1>
-          <p className="text-zinc-400 text-lg mb-12">
-            Connect talent with opportunity
-          </p>
-
-          <div className="space-y-4">
-            <Link href="/signup">
-              <Button className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-semibold h-14 text-lg">
-                Get Started
-              </Button>
-            </Link>
-            
-            <Link href="/login">
-              <Button 
-                variant="outline" 
-                className="w-full border-2 border-emerald-500 text-emerald-500 hover:bg-emerald-500/10 font-semibold h-14 text-lg"
-              >
-                Log In
-              </Button>
-            </Link>
+      <div 
+        className="min-h-screen flex items-center justify-center"
+        style={getBackgroundStyle()}
+      >
+        <div className="w-full max-w-[390px] mx-auto h-screen flex flex-col">
+          {/* Logo at top */}
+          <div className="flex justify-center pt-6 pb-6">
+            <Image
+              src="/logo.png"
+              alt="Head Huntd Logo"
+              width={60}
+              height={60}
+              className="object-contain"
+              priority
+            />
           </div>
 
-          <div className="mt-12 space-y-2">
-            <p className="text-zinc-400 text-sm">Are you a:</p>
-            <div className="flex gap-4 justify-center">
-              <Link href="/employee/personal-details" className="text-emerald-500 hover:underline">
-                Employee
-              </Link>
-              <span className="text-zinc-600">|</span>
-              <Link href="/signup" className="text-emerald-500 hover:underline">
-                Employer
-              </Link>
+          {/* Hero Image with overlay content */}
+          <div className="flex-1 px-4">
+            <div className="relative w-full h-full rounded-3xl overflow-hidden">
+              {/* Background Image */}
+              <Image
+                src="/Worker.png"
+                alt="Construction workers"
+                fill
+                className="object-cover"
+                priority
+              />
+
+              {/* Content Card overlaying bottom of image */}
+              <div className={`absolute bottom-0 left-0 right-0 ${getCardClassName()} rounded-t-3xl px-6 pt-6 pb-6 shadow-lg`}>
+                <h1 className={`text-[22px] font-bold ${getTextClassName()} mb-3 leading-tight`}>
+                  Connect with people<br />across Australia
+                </h1>
+                <p className={`text-[13px] ${getSubTextClassName()} leading-relaxed mb-6`}>
+                  Begin networking with companies across Australia. Browse job listings that match your skills and interests.
+                </p>
+
+                {/* Create account button */}
+                <Link href="/signup" className="block mb-4">
+                  <Button className="w-full bg-[#00D66C] hover:bg-[#00C061] text-black font-semibold h-[50px] text-[15px] rounded-full">
+                    Create account
+                  </Button>
+                </Link>
+                
+                {/* Login link */}
+                <div className="text-center">
+                  <span className={`text-sm ${getSubTextClassName()}`}>Already have an account? </span>
+                  <Link href="/login/role-selection" className="text-sm font-semibold text-[#00D66C] hover:underline">
+                    Log in
+                  </Link>
+                </div>
+              </div>
             </div>
           </div>
         </div>

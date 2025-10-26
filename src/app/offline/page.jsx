@@ -7,7 +7,6 @@ export default function OfflinePage() {
             <text x="10" y="70" fontSize="80" fontFamily="Arial" fontWeight="bold">|||</text>
           </svg>
         </div>
-        <div className="text-white text-sm font-light tracking-wider mb-8">HEAD HUNTD</div>
         
         <div className="max-w-md mx-auto">
           <svg className="w-16 h-16 text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

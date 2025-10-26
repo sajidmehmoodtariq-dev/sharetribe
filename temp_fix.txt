@@ -1,0 +1,1 @@
+Let me find the proper end of the function and remove everything after it
