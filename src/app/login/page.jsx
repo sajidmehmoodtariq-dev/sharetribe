@@ -110,14 +110,8 @@ export default function LoginPage() {
         return;
       }
 
-      // Redirect based on user role
-      if (data.user.role === 'employee' || role === 'job-hunter') {
-        router.push('/employee/search-jobs');
-      } else if (data.user.role === 'employer' || role === 'head-hunter') {
-        router.push('/dashboard');
-      } else {
-        router.push('/');
-      }
+      // Redirect to home page for all users
+      router.push('/home');
     } catch (err) {
       setErrors({
         email: '',
