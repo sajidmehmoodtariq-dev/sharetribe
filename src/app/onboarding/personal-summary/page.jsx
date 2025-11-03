@@ -12,12 +12,37 @@ export default function PersonalSummaryPage() {
   const router = useRouter();
   const [personalSummary, setPersonalSummary] = useState('');
 
-  const handleContinue = () => {
-    // Store personal summary data
-    sessionStorage.setItem('personalSummary', personalSummary);
-    
-    // Navigate to skills/work experience
-    router.push('/onboarding/work-experience');
+  const handleContinue = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Please login first');
+        router.push('/login');
+        return;
+      }
+
+      // Update user profile with personal summary
+      const response = await fetch('http://localhost:5000/api/user/onboarding/personal-summary', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ personalSummary }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to save personal summary');
+      }
+
+      // Navigate to skills/work experience
+      router.push('/onboarding/work-experience');
+    } catch (error) {
+      console.error('Error:', error);
+      alert(error.message || 'Something went wrong. Please try again.');
+    }
   };
 
   return (

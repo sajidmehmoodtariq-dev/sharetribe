@@ -38,50 +38,38 @@ export default function AvailabilityPage() {
 
   const handleFinish = async () => {
     try {
-      // Get all stored data from previous steps
-      const signupData = JSON.parse(sessionStorage.getItem('signupData') || '{}');
-      const selectedGoal = sessionStorage.getItem('selectedGoal');
-      const personalDetails = JSON.parse(sessionStorage.getItem('personalDetails') || '{}');
-      const personalSummary = sessionStorage.getItem('personalSummary') || '';
-      const workExperience = JSON.parse(sessionStorage.getItem('workExperience') || '{}');
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Please login first');
+        router.push('/login');
+        return;
+      }
 
-      // Combine all data
-      const completeProfile = {
-        ...signupData,
-        selectedGoal,
-        ...personalDetails,
-        personalSummary,
-        ...workExperience,
-        availability,
-        dateRange,
-        noticePreference
-      };
-
-      // Create account with complete profile
-      const response = await fetch('/api/auth/signup', {
+      // Update user profile with availability
+      const response = await fetch('http://localhost:5000/api/user/onboarding/availability', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
-          ...completeProfile,
-          role: sessionStorage.getItem('userRole') || 'employee',
-          subscriptionPackage: null // No subscription since they skipped
+          availability,
+          dateRange,
+          noticePreference
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Signup failed');
+        throw new Error(data.error || 'Failed to save availability');
       }
 
-      // Clear all session storage
-      sessionStorage.removeItem('signupData');
-      sessionStorage.removeItem('selectedGoal');
-      sessionStorage.removeItem('personalDetails');
-      sessionStorage.removeItem('personalSummary');
-      sessionStorage.removeItem('workExperience');
-      sessionStorage.removeItem('userRole');
+      // Clear any remaining session storage
+      sessionStorage.clear();
 
+      alert('Profile completed successfully!');
+      
       // Redirect to home page
       router.push('/home');
     } catch (error) {

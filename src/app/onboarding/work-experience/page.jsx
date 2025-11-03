@@ -71,18 +71,43 @@ export default function WorkExperiencePage() {
     }));
   };
 
-  const handleContinue = () => {
-    // Store work experience data
-    sessionStorage.setItem('workExperience', JSON.stringify({
-      workStatus,
-      employmentTypes,
-      selectedIndustry,
-      selectedRole,
-      formData
-    }));
-    
-    // Navigate to availability page
-    router.push('/onboarding/availability');
+  const handleContinue = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Please login first');
+        router.push('/login');
+        return;
+      }
+
+      // Update user profile with work experience
+      const response = await fetch('http://localhost:5000/api/user/onboarding/work-experience', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          workStatus,
+          employmentTypes,
+          selectedIndustry,
+          selectedRole,
+          ...formData
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to save work experience');
+      }
+
+      // Navigate to availability page
+      router.push('/onboarding/availability');
+    } catch (error) {
+      console.error('Error:', error);
+      alert(error.message || 'Something went wrong. Please try again.');
+    }
   };
 
   return (

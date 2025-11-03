@@ -28,69 +28,38 @@ export default function BusinessSummaryPage() {
     setError('');
 
     try {
-      // Get all employer data
-      const employerData = JSON.parse(sessionStorage.getItem('employerData') || '{}');
-      const signupData = JSON.parse(sessionStorage.getItem('signupData') || '{}');
-      const selectedGoal = sessionStorage.getItem('selectedGoal');
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Please login first');
+        router.push('/login');
+        return;
+      }
 
-      console.log('Creating employer account...');
-
-      // Create account with all data
-      const response = await fetch('/api/auth/signup', {
+      // Update user profile with business summary
+      const response = await fetch('http://localhost:5000/api/onboarding/business-summary', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          // Basic auth info
-          email: signupData.email,
-          password: signupData.password,
-          fullName: employerData.fullName || signupData.fullName,
-          mobileNumber: employerData.mobileNumber || signupData.mobileNumber,
-          role: 'employer',
-          selectedGoal: selectedGoal,
-          
-          // Personal details
-          dateOfBirth: employerData.dateOfBirth,
-          address: employerData.address,
-          showEmailOnProfile: employerData.showEmailOnProfile,
-          showMobileOnProfile: employerData.showMobileOnProfile,
-          
-          // Business details
-          businessName: employerData.businessName,
-          country: employerData.country,
-          businessAddress: employerData.businessAddress,
-          industry: employerData.industry,
-          businessSize: employerData.businessSize,
-          yourRole: employerData.yourRole,
-          website: employerData.website,
-          abn: employerData.abn,
-          businessSummary: businessSummary,
-        }),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ businessSummary }),
       });
 
       const data = await response.json();
-      console.log('Signup response:', data);
 
       if (!response.ok) {
-        // If user already exists, that's okay - they might have clicked back
-        if (data.error === 'User already exists') {
-          console.log('User already exists, redirecting to login...');
-          alert('Account already exists. Please log in.');
-          router.push('/login');
-          return;
-        }
-        throw new Error(data.error || 'Signup failed');
+        throw new Error(data.error || 'Failed to save business summary');
       }
 
       // Clear session storage
-      sessionStorage.removeItem('signupData');
-      sessionStorage.removeItem('selectedGoal');
-      sessionStorage.removeItem('employerData');
-      sessionStorage.removeItem('userRole');
+      sessionStorage.clear();
+
+      alert('Profile completed successfully!');
 
       // Redirect to dashboard
-      router.push('/dashboard');
+      router.push('/home');
     } catch (err) {
-      console.error('Error creating account:', err);
+      console.error('Error saving business summary:', err);
       setError(err.message);
     } finally {
       setLoading(false);

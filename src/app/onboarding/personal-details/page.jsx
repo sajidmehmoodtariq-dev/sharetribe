@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useTheme } from '@/components/ThemeProvider';
 import Image from 'next/image';
+import { compressImage, validateImage } from '@/lib/imageUtils';
 
 export default function PersonalDetailsPage() {
   const { getBackgroundStyle, getCardClassName, getTextClassName, getSubTextClassName } = useTheme();
@@ -21,6 +22,7 @@ export default function PersonalDetailsPage() {
     showMobileOnProfile: true,
   });
   const [profileImage, setProfileImage] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -30,26 +32,71 @@ export default function PersonalDetailsPage() {
     }));
   };
 
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setProfileImage(event.target.result);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    // Validate image
+    const validation = validateImage(file, { maxSizeInMB: 5 });
+    if (!validation.valid) {
+      alert(validation.error);
+      return;
+    }
+
+    setIsUploading(true);
+    
+    try {
+      // Compress image to base64
+      const compressedBase64 = await compressImage(file, {
+        maxWidth: 400,
+        maxHeight: 400,
+        quality: 0.8,
+        outputFormat: 'image/jpeg'
+      });
+      
+      setProfileImage(compressedBase64);
+    } catch (error) {
+      console.error('Image compression error:', error);
+      alert('Failed to process image. Please try another image.');
+    } finally {
+      setIsUploading(false);
     }
   };
 
-  const handleContinue = () => {
-    // Store personal details data
-    sessionStorage.setItem('personalDetails', JSON.stringify({
-      ...formData,
-      profileImage
-    }));
-    
-    // Navigate to personal summary
-    router.push('/onboarding/personal-summary');
+  const handleContinue = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Please login first');
+        router.push('/login');
+        return;
+      }
+
+      // Update user profile with personal details
+      const response = await fetch('http://localhost:5000/api/onboarding/personal-details', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          ...formData,
+          profileImage
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to save personal details');
+      }
+
+      // Navigate to personal summary
+      router.push('/onboarding/personal-summary');
+    } catch (error) {
+      console.error('Error:', error);
+      alert(error.message || 'Something went wrong. Please try again.');
+    }
   };
 
   return (
@@ -131,14 +178,19 @@ export default function PersonalDetailsPage() {
                 accept="image/*"
                 onChange={handleImageUpload}
                 className="hidden"
+                disabled={isUploading}
               />
               <Button
                 onClick={() => document.getElementById('profileImage').click()}
                 variant="outline"
                 className={`text-[13px] px-6 py-2 rounded-full border-gray-300 ${getTextClassName()}`}
+                disabled={isUploading}
               >
-                Upload Image
+                {isUploading ? 'Processing...' : 'Upload Image'}
               </Button>
+              {isUploading && (
+                <p className="text-xs text-gray-500 mt-2">Compressing image...</p>
+              )}
             </div>
 
             {/* Form Fields */}

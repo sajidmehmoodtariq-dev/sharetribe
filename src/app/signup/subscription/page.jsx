@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/components/ThemeProvider';
@@ -10,6 +10,7 @@ export default function SubscriptionPage() {
   const { getBackgroundStyle, getCardClassName, getTextClassName, getSubTextClassName } = useTheme();
   const router = useRouter();
   const [selectedPackage, setSelectedPackage] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const packages = [
     {
@@ -27,19 +28,36 @@ export default function SubscriptionPage() {
     },
   ];
 
+  // Auto-select the first (and only) package on mount
+  useEffect(() => {
+    if (packages.length > 0 && !selectedPackage) {
+      setSelectedPackage(packages[0]);
+    }
+  }, []);
+
   const handleGetStarted = async () => {
     if (!selectedPackage) {
       alert('Please select a subscription package');
       return;
     }
 
+    if (isLoading) return;
+    setIsLoading(true);
+
     try {
       // Get signup data from session storage
       const signupData = JSON.parse(sessionStorage.getItem('signupData') || '{}');
       const selectedGoal = sessionStorage.getItem('selectedGoal');
+      const userRole = sessionStorage.getItem('userRole') || 'employee';
 
-      // Create account with subscription
-      const response = await fetch('/api/auth/signup', {
+      if (!signupData.email || !signupData.password) {
+        alert('Signup data missing. Please start from the beginning.');
+        router.push('/signup');
+        return;
+      }
+
+      // Create Stripe checkout session
+      const response = await fetch('http://localhost:5000/api/stripe/create-checkout-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -47,33 +65,84 @@ export default function SubscriptionPage() {
           password: signupData.password,
           fullName: signupData.fullName,
           mobileNumber: signupData.mobileNumber || '',
-          role: 'employer',
+          role: userRole,
           selectedGoal: selectedGoal,
-          subscriptionPackage: selectedPackage,
+          packageId: selectedPackage.id,
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
+        if (data.error && data.error.includes('already exists')) {
+          // User already exists, redirect to login
+          sessionStorage.setItem('loginMessage', 'User already exists. Please login.');
+          router.push('/login');
+          return;
+        }
+        throw new Error(data.error || 'Failed to create checkout session');
+      }
+
+      // Redirect to Stripe Checkout
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL received');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert(error.message || 'Something went wrong. Please try again.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleSkip = async () => {
+    try {
+      // Get signup data from session storage
+      const signupData = JSON.parse(sessionStorage.getItem('signupData') || '{}');
+      const selectedGoal = sessionStorage.getItem('selectedGoal');
+      const userRole = sessionStorage.getItem('userRole') || 'employee';
+
+      // Create account without subscription
+      const response = await fetch('http://localhost:5000/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: signupData.email,
+          password: signupData.password,
+          fullName: signupData.fullName,
+          mobileNumber: signupData.mobileNumber || '',
+          role: userRole,
+          selectedGoal: selectedGoal,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (data.error && data.error.includes('already exists')) {
+          // User already exists, redirect to login
+          sessionStorage.setItem('loginMessage', 'User already exists. Please login.');
+          router.push('/login');
+          return;
+        }
         throw new Error(data.error || 'Signup failed');
       }
+
+      // Store token
+      localStorage.setItem('token', data.token);
 
       // Clear session storage
       sessionStorage.removeItem('signupData');
       sessionStorage.removeItem('selectedGoal');
+      sessionStorage.removeItem('userRole');
 
-      // Redirect to dashboard
-      router.push('/dashboard');
+      // Navigate to personal details onboarding
+      router.push('/onboarding/personal-details');
     } catch (error) {
       console.error('Error:', error);
       alert(error.message || 'Something went wrong. Please try again.');
     }
-  };
-
-  const handleSkip = () => {
-    // Navigate to personal details onboarding instead of creating account immediately
-    router.push('/onboarding/personal-details');
   };
 
   return (
@@ -162,14 +231,11 @@ export default function SubscriptionPage() {
 
                   {/* Get Started Button */}
                   <Button
-                    className="w-full h-12 bg-[#00EA72] hover:bg-[#00D66C] text-black font-medium text-[15px] rounded-full"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedPackage(pkg);
-                      handleGetStarted();
-                    }}
+                    className="w-full h-12 bg-[#00EA72] hover:bg-[#00D66C] text-black font-medium text-[15px] rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={handleGetStarted}
+                    disabled={isLoading}
                   >
-                    Get Started
+                    {isLoading ? 'Processing...' : 'Get Started'}
                   </Button>
                 </div>
               ))}

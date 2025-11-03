@@ -25,6 +25,18 @@ export default function LoginPage() {
     general: ''
   });
   const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+
+  // Check for login message from session storage
+  useEffect(() => {
+    const loginMessage = sessionStorage.getItem('loginMessage');
+    if (loginMessage) {
+      setMessage(loginMessage);
+      sessionStorage.removeItem('loginMessage');
+      // Clear message after 5 seconds
+      setTimeout(() => setMessage(''), 5000);
+    }
+  }, []);
 
   // If no role is selected, redirect to role selection
   useEffect(() => {
@@ -158,6 +170,12 @@ export default function LoginPage() {
                 </p>
               </div>
             </div>
+
+            {message && (
+              <div className="bg-blue-500/10 border border-blue-500 text-blue-600 dark:text-blue-400 px-4 py-2 rounded mb-4 text-sm">
+                {message}
+              </div>
+            )}
 
             {errors.general && (
               <div className="bg-red-500/10 border border-red-500 text-red-500 px-4 py-2 rounded mb-4 text-sm">
