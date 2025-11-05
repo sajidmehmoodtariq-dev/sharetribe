@@ -358,7 +358,7 @@ export default function HomePage() {
                 {/* Active Users */}
                 <div className="flex space-x-3 overflow-x-auto pb-2">
                   {chatMessages.filter(msg => msg.isActive).map((user) => (
-                    <div key={user.id} className="flex-shrink-0 relative">
+                    <div key={user.id} className="shrink-0 relative">
                       <div className="w-12 h-12 bg-gray-600 rounded-full flex items-center justify-center">
                         <User className="w-6 h-6 text-white" />
                       </div>

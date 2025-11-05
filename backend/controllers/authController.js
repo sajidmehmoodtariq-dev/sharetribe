@@ -1,6 +1,8 @@
 const User = require('../models/User');
 const Subscription = require('../models/Subscription');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const { sendPasswordResetEmail } = require('../utils/emailService');
 
 // Generate JWT Token
 const generateToken = (userId) => {
@@ -395,6 +397,181 @@ exports.updateOnboardingStep = async (req, res) => {
     });
   } catch (error) {
     console.error('Update onboarding error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// @desc    Request password reset
+// @route   POST /api/auth/forgot-password
+// @access  Public
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    // Find user by email
+    const user = await User.findOne({ email: email.toLowerCase() });
+
+    if (!user) {
+      // Don't reveal if user exists or not for security
+      return res.json({
+        success: true,
+        message: 'If an account exists with this email, a verification code has been sent.'
+      });
+    }
+
+    // Generate 5-digit verification code
+    const resetCode = Math.floor(10000 + Math.random() * 90000).toString();
+    
+    // Generate reset token for additional security
+    const resetToken = crypto.randomBytes(32).toString('hex');
+
+    // Hash the code before storing
+    const hashedCode = crypto
+      .createHash('sha256')
+      .update(resetCode)
+      .digest('hex');
+
+    // Set reset token and expiration (15 minutes)
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordCode = hashedCode;
+    user.resetPasswordExpires = Date.now() + 15 * 60 * 1000; // 15 minutes
+
+    await user.save();
+
+    // Send email with verification code
+    try {
+      await sendPasswordResetEmail(user.email, resetCode, user.fullName);
+    } catch (emailError) {
+      console.error('Failed to send reset email:', emailError);
+      // Clear reset fields if email fails
+      user.resetPasswordToken = undefined;
+      user.resetPasswordCode = undefined;
+      user.resetPasswordExpires = undefined;
+      await user.save();
+
+      return res.status(500).json({
+        error: 'Failed to send verification email. Please try again later.'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Verification code has been sent to your email.',
+      resetToken // Send this to client to use in subsequent requests
+    });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// @desc    Verify reset code
+// @route   POST /api/auth/verify-reset-code
+// @access  Public
+exports.verifyResetCode = async (req, res) => {
+  try {
+    const { email, code, resetToken } = req.body;
+
+    if (!email || !code || !resetToken) {
+      return res.status(400).json({
+        error: 'Email, verification code, and reset token are required'
+      });
+    }
+
+    // Hash the provided code
+    const hashedCode = crypto
+      .createHash('sha256')
+      .update(code)
+      .digest('hex');
+
+    // Find user with matching email, code, and valid expiration
+    const user = await User.findOne({
+      email: email.toLowerCase(),
+      resetPasswordCode: hashedCode,
+      resetPasswordToken: resetToken,
+      resetPasswordExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        error: 'Invalid or expired verification code'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Verification code is valid'
+    });
+  } catch (error) {
+    console.error('Verify reset code error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// @desc    Reset password
+// @route   POST /api/auth/reset-password
+// @access  Public
+exports.resetPassword = async (req, res) => {
+  try {
+    const { email, code, resetToken, newPassword } = req.body;
+
+    if (!email || !code || !resetToken || !newPassword) {
+      return res.status(400).json({
+        error: 'All fields are required'
+      });
+    }
+
+    // Validate password length
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        error: 'Password must be at least 6 characters long'
+      });
+    }
+
+    // Hash the provided code
+    const hashedCode = crypto
+      .createHash('sha256')
+      .update(code)
+      .digest('hex');
+
+    // Find user with matching email, code, and valid expiration
+    const user = await User.findOne({
+      email: email.toLowerCase(),
+      resetPasswordCode: hashedCode,
+      resetPasswordToken: resetToken,
+      resetPasswordExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        error: 'Invalid or expired verification code'
+      });
+    }
+
+    // Update password (will be hashed by pre-save hook)
+    user.password = newPassword;
+    
+    // Clear reset fields
+    user.resetPasswordToken = undefined;
+    user.resetPasswordCode = undefined;
+    user.resetPasswordExpires = undefined;
+    
+    // Reset login attempts if any
+    user.loginAttempts = 0;
+    user.lockUntil = undefined;
+
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Password has been reset successfully. You can now login with your new password.'
+    });
+  } catch (error) {
+    console.error('Reset password error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
