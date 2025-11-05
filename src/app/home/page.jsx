@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { useTheme } from '@/components/ThemeProvider';
 import Image from 'next/image';
-import { Bell, User, Menu } from 'lucide-react';
+import { Bell, User, Menu, Calendar } from 'lucide-react';
 
 export default function HomePage() {
   const { theme, getBackgroundStyle, getCardClassName, getTextClassName, getSubTextClassName, getInputClassName } = useTheme();
@@ -31,6 +32,20 @@ export default function HomePage() {
   const [favoriteJobs, setFavoriteJobs] = useState(new Set([1, 2])); // Job IDs 1 and 2 are favorited by default
   const [connectionSearchQuery, setConnectionSearchQuery] = useState('');
   const [sortConnectionsBy, setSortConnectionsBy] = useState('Alphabetical');
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editForm, setEditForm] = useState({
+    fullName: '',
+    email: '',
+    phoneNumber: '',
+    dateOfBirth: '',
+    address: '',
+    profileImage: '',
+    summary: '',
+    currentJobTitle: '',
+    role: ''
+  });
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [saveMessage, setSaveMessage] = useState('');
 
   // Fetch user data on mount
   useEffect(() => {
@@ -40,6 +55,25 @@ export default function HomePage() {
         if (response.ok) {
           const data = await response.json();
           setUser(data.user);
+          // Initialize edit form with user data
+          const dob = data.user?.personalDetails?.dateOfBirth;
+          let formattedDob = '';
+          if (dob) {
+            // Handle both string and MongoDB date object
+            const dateObj = typeof dob === 'string' ? new Date(dob) : new Date(dob.$date?.$numberLong ? parseInt(dob.$date.$numberLong) : dob);
+            formattedDob = dateObj.toISOString().split('T')[0];
+          }
+          setEditForm({
+            fullName: data.user?.fullName || '',
+            email: data.user?.email || '',
+            phoneNumber: data.user?.mobileNumber || data.user?.phoneNumber || '',
+            dateOfBirth: formattedDob,
+            address: data.user?.personalDetails?.address || '',
+            profileImage: data.user?.personalDetails?.profileImage || '',
+            summary: data.user?.personalSummary?.summary || '',
+            currentJobTitle: data.user?.workExperience?.currentJobTitle || '',
+            role: data.user?.workExperience?.role || ''
+          });
         } else {
           router.push('/login/role-selection');
         }
@@ -62,6 +96,108 @@ export default function HomePage() {
     } catch (error) {
       console.error('Error signing out:', error);
     }
+  };
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        try {
+          // Create image element
+          const img = document.createElement('img');
+          img.src = event.target.result;
+          
+          img.onload = () => {
+            // Create canvas for compression
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 400;
+            const MAX_HEIGHT = 400;
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+              if (width > MAX_WIDTH) {
+                height *= MAX_WIDTH / width;
+                width = MAX_WIDTH;
+              }
+            } else {
+              if (height > MAX_HEIGHT) {
+                width *= MAX_HEIGHT / height;
+                height = MAX_HEIGHT;
+              }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            // Compress and convert to base64
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.8);
+            setEditForm(prev => ({ ...prev, profileImage: compressedBase64 }));
+          };
+        } catch (error) {
+          console.error('Error processing image:', error);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    setSaveLoading(true);
+    setSaveMessage('');
+    
+    try {
+      const response = await fetch('/api/user/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(editForm),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data.user);
+        setIsEditingProfile(false);
+        setSaveMessage('Profile updated successfully!');
+        setTimeout(() => setSaveMessage(''), 3000);
+      } else {
+        const error = await response.json();
+        setSaveMessage(error.message || 'Failed to update profile');
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      setSaveMessage('Error updating profile');
+    } finally {
+      setSaveLoading(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditingProfile(false);
+    // Reset form to current user data
+    const dob = user?.personalDetails?.dateOfBirth;
+    let formattedDob = '';
+    if (dob) {
+      // Handle both string and MongoDB date object
+      const dateObj = typeof dob === 'string' ? new Date(dob) : new Date(dob.$date?.$numberLong ? parseInt(dob.$date.$numberLong) : dob);
+      formattedDob = dateObj.toISOString().split('T')[0];
+    }
+    setEditForm({
+      fullName: user?.fullName || '',
+      email: user?.email || '',
+      phoneNumber: user?.mobileNumber || user?.phoneNumber || '',
+      dateOfBirth: formattedDob,
+      address: user?.personalDetails?.address || '',
+      profileImage: user?.personalDetails?.profileImage || '',
+      summary: user?.personalSummary?.summary || '',
+      currentJobTitle: user?.workExperience?.currentJobTitle || '',
+      role: user?.workExperience?.role || ''
+    });
+    setSaveMessage('');
   };
 
   if (loading) {
@@ -470,13 +606,25 @@ export default function HomePage() {
                 {/* Profile Info */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 bg-gray-800 rounded-full flex items-center justify-center">
-                      <User className="w-6 h-6 text-white" />
-                    </div>
+                    {user?.personalDetails?.profileImage ? (
+                      <img 
+                        src={user.personalDetails.profileImage} 
+                        alt={user.fullName}
+                        className="w-12 h-12 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 bg-gray-800 rounded-full flex items-center justify-center">
+                        <User className="w-6 h-6 text-white" />
+                      </div>
+                    )}
                     <div>
-                      <h3 className={`font-semibold ${getTextClassName()}`}>Al Dente</h3>
-                      <p className={`text-sm ${getSubTextClassName()}`}>Concrete Finisher</p>
-                      <p className={`text-xs ${getSubTextClassName()}`}>• Adelaide, Australia</p>
+                      <h3 className={`font-semibold ${getTextClassName()}`}>{user?.fullName || 'User'}</h3>
+                      <p className={`text-sm ${getSubTextClassName()}`}>
+                        {user?.workExperience?.role || user?.workExperience?.currentJobTitle || 'Not specified'}
+                      </p>
+                      <p className={`text-xs ${getSubTextClassName()}`}>
+                        • {user?.personalDetails?.address || user?.address || 'Location not set'}
+                      </p>
                       <div className="flex items-center mt-1">
                         {[1, 2, 3, 4, 5].map((star) => (
                           <svg key={star} className="w-3 h-3 text-yellow-400 fill-current" viewBox="0 0 20 20">
@@ -486,7 +634,12 @@ export default function HomePage() {
                       </div>
                     </div>
                   </div>
-                  <Button className="px-4 py-2 text-sm">Edit Profile</Button>
+                  <Button 
+                    onClick={() => setIsEditingProfile(true)}
+                    className="px-4 py-2 text-sm"
+                  >
+                    Edit Profile
+                  </Button>
                 </div>
 
                 {/* Profile Tabs */}
@@ -528,67 +681,75 @@ export default function HomePage() {
                     <button className={`pb-2 text-sm font-medium ${getTextClassName()} border-b-2 border-[#00EA72]`}>
                       About
                     </button>
-                    <button className={`pb-2 text-sm font-medium ${getSubTextClassName()}`}>
-                      References
-                    </button>
                   </div>
                   <p className={`text-sm leading-relaxed ${getSubTextClassName()}`}>
-                    I am a experienced Concreter skilled in pouring, finishing, and repairing concrete for residential, commercial, and industrial projects. Expert in using various tools and techniques, delivering high-quality finishes with attention to detail and safety. Reliable, hardworking, and committed to producing strong and durable results.
+                    {user?.personalSummary?.summary || user?.personalSummary || 'No professional summary provided yet.'}
                   </p>
                 </div>
 
-                {/* Essential Licenses */}
-                <div>
-                  <h4 className={`font-semibold mb-3 ${getTextClassName()}`}>Essential Licenses</h4>
-                  <div className="flex flex-wrap gap-2">
-                    <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">Current White Card</span>
-                    <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">Current Driver's license C class manual</span>
-                    <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">MR Class</span>
-                  </div>
-                </div>
-
-                {/* Skills */}
-                <div>
-                  <h4 className={`font-semibold mb-3 ${getTextClassName()}`}>Al Dente's Skills</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {['Foundations', 'Commercial', 'Decorative', 'Residential', 'Labourer'].map((skill) => (
-                      <span key={skill} className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
-                        {skill}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
                 {/* Availability */}
-                <div>
-                  <h4 className={`font-semibold mb-2 ${getTextClassName()}`}>My next available date to work is:</h4>
-                  <p className={`text-sm mb-3 ${getSubTextClassName()}`}>Monday August 22 - Friday August 25</p>
-                  <p className={`text-sm font-medium mb-3 ${getTextClassName()}`}>August 2025</p>
-                  
-                  {/* Mini Calendar */}
-                  <div className="grid grid-cols-7 gap-1 text-xs">
-                    {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((day) => (
-                      <div key={day} className={`text-center p-1 font-medium ${getSubTextClassName()}`}>
-                        {day}
-                      </div>
-                    ))}
-                    {Array.from({ length: 31 }, (_, i) => i + 1).map((date) => {
-                      const isAvailable = date >= 22 && date <= 25;
-                      return (
-                        <div
-                          key={date}
-                          className={`text-center p-1 text-xs ${
-                            isAvailable 
-                              ? 'bg-green-100 text-green-800 font-semibold rounded' 
-                              : getSubTextClassName()
-                          }`}
-                        >
-                          {date}
+                {user?.availability && (
+                  <div>
+                    <h4 className={`font-semibold mb-4 ${getTextClassName()}`}>My next available date to work is:</h4>
+                    {user.availability.dateRange?.from && user.availability.dateRange?.to ? (
+                      <div className="space-y-4">
+                        {/* Calendar Display */}
+                        <div className="flex items-center justify-between gap-2">
+                          {/* Start Date Calendar */}
+                          <div className={`w-[49%] p-6 rounded-lg text-center ${theme === 'dark' ? 'bg-gray-800/50' : 'bg-gray-50'}`}>
+                            <p className={`text-xs mb-3 font-medium ${getSubTextClassName()}`}>From</p>
+                            <Calendar className="w-10 h-10 mb-3 mx-auto text-[#00EA72]" />
+                            <p className={`text-base font-semibold ${getTextClassName()}`}>
+                              {new Date(user.availability.dateRange.from).toLocaleDateString('en-US', { weekday: 'long' })},
+                            </p>
+                            <p className={`text-base font-semibold ${getTextClassName()}`}>
+                              {new Date(user.availability.dateRange.from).toLocaleDateString('en-US', { month: 'long' })}
+                            </p>
+                            <p className={`text-base font-semibold ${getTextClassName()}`}>
+                              {new Date(user.availability.dateRange.from).getDate()}
+                            </p>
+                          </div>
+                          
+                          {/* End Date Calendar */}
+                          <div className={`w-[49%] p-6 rounded-lg text-center ${theme === 'dark' ? 'bg-gray-800/50' : 'bg-gray-50'}`}>
+                            <p className={`text-xs mb-3 font-medium ${getSubTextClassName()}`}>To</p>
+                            <Calendar className="w-10 h-10 mb-3 mx-auto text-[#00EA72]" />
+                            <p className={`text-base font-semibold ${getTextClassName()}`}>
+                              {new Date(user.availability.dateRange.to).toLocaleDateString('en-US', { weekday: 'long' })},
+                            </p>
+                            <p className={`text-base font-semibold ${getTextClassName()}`}>
+                              {new Date(user.availability.dateRange.to).toLocaleDateString('en-US', { month: 'long' })}
+                            </p>
+                            <p className={`text-base font-semibold ${getTextClassName()}`}>
+                              {new Date(user.availability.dateRange.to).getDate()}
+                            </p>
+                          </div>
                         </div>
-                      );
-                    })}
+                      </div>
+                    ) : (
+                      <p className={`text-sm mb-3 ${getSubTextClassName()}`}>Not specified</p>
+                    )}
+                    
+                    {user.availability.preferredWorkTimes && user.availability.preferredWorkTimes.length > 0 && (
+                      <div className="mt-4">
+                        <h5 className={`text-sm font-medium ${getTextClassName()} mb-2`}>Preferred Work Times:</h5>
+                        <div className="flex flex-wrap gap-2">
+                          {user.availability.preferredWorkTimes.map((time, index) => (
+                            <span key={index} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium capitalize">
+                              {time}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {user.availability.noticePreference && (
+                      <p className={`text-xs mt-3 ${getSubTextClassName()}`}>
+                        Notice Preference: <span className="font-medium capitalize">{user.availability.noticePreference.replace('-', ' ')}</span>
+                      </p>
+                    )}
                   </div>
-                </div>
+                )}
               </div>
             ) : showSavedProjects ? (
               /* Saved Projects Content */
@@ -1450,6 +1611,194 @@ export default function HomePage() {
           </div>
         </div>
       </div>
+
+      {/* Edit Profile Modal */}
+      {isEditingProfile && (
+        <div 
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200"
+          onClick={(e) => e.target === e.currentTarget && handleCancelEdit()}
+        >
+          <div className={`${getCardClassName()} max-w-2xl w-full max-h-[90vh] overflow-y-auto rounded-xl shadow-2xl animate-in zoom-in-95 duration-200`}>
+            <div className="p-6">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between mb-6">
+                <h2 className={`text-xl font-semibold ${getTextClassName()}`}>Edit Profile</h2>
+                <button
+                  onClick={handleCancelEdit}
+                  className={`p-2 rounded-lg hover:bg-gray-100 ${getTextClassName()}`}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Save Message */}
+              {saveMessage && (
+                <div className={`mb-4 p-3 rounded-lg ${
+                  saveMessage.includes('success') 
+                    ? 'bg-green-100 text-green-800' 
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {saveMessage}
+                </div>
+              )}
+
+              {/* Edit Form */}
+              <div className="space-y-5">
+                {/* Profile Image */}
+                <div className="flex flex-col items-center">
+                  <Label className={`${getTextClassName()} mb-3 text-center`}>Profile Image</Label>
+                  <div className="flex flex-col items-center gap-3">
+                    {editForm.profileImage ? (
+                      <img 
+                        src={editForm.profileImage} 
+                        alt="Profile"
+                        className="w-24 h-24 rounded-full object-cover border-4 border-[#00EA72]/20"
+                      />
+                    ) : (
+                      <div className="w-24 h-24 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center border-4 border-gray-200">
+                        <User className="w-12 h-12 text-gray-500" />
+                      </div>
+                    )}
+                    <input
+                      type="file"
+                      id="profileImage"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
+                    <label
+                      htmlFor="profileImage"
+                      className="px-6 py-2.5 bg-[#00EA72] text-white rounded-lg cursor-pointer hover:bg-[#00d966] transition-colors font-medium shadow-sm hover:shadow-md"
+                    >
+                      Upload Photo
+                    </label>
+                  </div>
+                </div>
+
+                {/* Full Name */}
+                <div>
+                  <Label htmlFor="fullName" className={`${getTextClassName()} mb-1.5 block font-medium`}>Full Name</Label>
+                  <Input
+                    id="fullName"
+                    value={editForm.fullName}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, fullName: e.target.value }))}
+                    className={`${getInputClassName()} h-11`}
+                    placeholder="Enter your full name"
+                  />
+                </div>
+
+                {/* Email */}
+                <div>
+                  <Label htmlFor="email" className={`${getTextClassName()} mb-1.5 block font-medium`}>Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={editForm.email}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, email: e.target.value }))}
+                    className={`${getInputClassName()} h-11`}
+                    placeholder="your.email@example.com"
+                  />
+                </div>
+
+                {/* Phone Number */}
+                <div>
+                  <Label htmlFor="phoneNumber" className={`${getTextClassName()} mb-1.5 block font-medium`}>Phone Number</Label>
+                  <Input
+                    id="phoneNumber"
+                    value={editForm.phoneNumber}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, phoneNumber: e.target.value }))}
+                    className={`${getInputClassName()} h-11`}
+                    placeholder="+1 (555) 000-0000"
+                  />
+                </div>
+
+                {/* Date of Birth */}
+                <div>
+                  <Label htmlFor="dateOfBirth" className={`${getTextClassName()} mb-1.5 block font-medium`}>Date of Birth</Label>
+                  <Input
+                    id="dateOfBirth"
+                    type="date"
+                    value={editForm.dateOfBirth}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, dateOfBirth: e.target.value }))}
+                    className={`${getInputClassName()} h-11`}
+                  />
+                </div>
+
+                {/* Address */}
+                <div>
+                  <Label htmlFor="address" className={`${getTextClassName()} mb-1.5 block font-medium`}>Address</Label>
+                  <Input
+                    id="address"
+                    value={editForm.address}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, address: e.target.value }))}
+                    className={`${getInputClassName()} h-11`}
+                    placeholder="City, Country"
+                  />
+                </div>
+
+                {/* Current Job Title - Only show if user has one */}
+                {(user?.workExperience?.currentJobTitle || editForm.currentJobTitle) && (
+                  <div>
+                    <Label htmlFor="currentJobTitle" className={`${getTextClassName()} mb-1.5 block font-medium`}>Current Job Title</Label>
+                    <Input
+                      id="currentJobTitle"
+                      value={editForm.currentJobTitle}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, currentJobTitle: e.target.value }))}
+                      className={`${getInputClassName()} h-11`}
+                      placeholder="e.g. Senior Developer"
+                    />
+                  </div>
+                )}
+
+                {/* Role - Only show if user has one */}
+                {(user?.workExperience?.role || editForm.role) && (
+                  <div>
+                    <Label htmlFor="role" className={`${getTextClassName()} mb-1.5 block font-medium`}>Role</Label>
+                    <Input
+                      id="role"
+                      value={editForm.role}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, role: e.target.value }))}
+                      className={`${getInputClassName()} h-11`}
+                      placeholder="e.g. Software Engineer"
+                    />
+                  </div>
+                )}
+
+                {/* Professional Summary */}
+                <div>
+                  <Label htmlFor="summary" className={`${getTextClassName()} mb-1.5 block font-medium`}>Professional Summary</Label>
+                  <Textarea
+                    id="summary"
+                    value={editForm.summary}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, summary: e.target.value }))}
+                    rows={6}
+                    className={`${getInputClassName()} min-h-[140px] resize-none rounded-[5px]`}
+                    placeholder="Write a brief professional summary about yourself..."
+                  />
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-6 border-t border-gray-200">
+                  <Button
+                    onClick={handleSaveProfile}
+                    disabled={saveLoading}
+                    className="flex-1 bg-[#00EA72] text-white hover:bg-[#00d966] h-11 font-medium shadow-sm hover:shadow-md transition-all"
+                  >
+                    {saveLoading ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                  <Button
+                    onClick={handleCancelEdit}
+                    variant="outline"
+                    className="flex-1 h-11 font-medium"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
+const { protect } = require('../middleware/auth');
+
+// Profile route (protected) - must be before /:id route
+router.put('/profile', protect, userController.updateProfile);
 
 // User routes
 router.get('/', userController.getAllUsers);

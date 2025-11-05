@@ -12,10 +12,7 @@ const personalDetailsSchema = new mongoose.Schema({
 
 // Personal Summary Schema - Step 2
 const personalSummarySchema = new mongoose.Schema({
-  summary: { type: String },
-  skills: [{ type: String }],
-  certifications: [{ type: String }],
-  languages: [{ type: String }]
+  summary: { type: String }
 }, { _id: false });
 
 // Work Experience Schema - Step 3
@@ -31,18 +28,13 @@ const workExperienceSchema = new mongoose.Schema({
   highestEducation: { type: String },
   currentJobTitle: { type: String },
   currentCompany: { type: String },
-  previousJobs: [{
-    jobTitle: { type: String },
-    companyName: { type: String },
-    startDate: { type: Date },
-    endDate: { type: Date },
-    description: { type: String }
-  }]
+  employmentDurationFrom: { type: String },
+  employmentDurationTo: { type: String },
+  workExperienceSummary: { type: String }
 }, { _id: false });
 
 // Availability Schema - Step 4
 const availabilitySchema = new mongoose.Schema({
-  status: { type: String }, // 'available', 'not-available', etc.
   dateRange: {
     from: { type: Date },
     to: { type: Date }
@@ -81,10 +73,10 @@ const userSchema = new mongoose.Schema({
   password: {
     type: String,
     required: [true, 'Password is required'],
-    minlength: [6, 'Password must be at least 6 characters']
+    minlength: [8, 'Password must be at least 8 characters']
   },
   
-  // Basic Information
+  // Basic Information (from signup page)
   fullName: {
     type: String,
     required: [true, 'Full name is required'],
@@ -95,7 +87,7 @@ const userSchema = new mongoose.Schema({
     trim: true
   },
   
-  // User Role & Goal
+  // User Role & Goal (from role selection)
   role: {
     type: String,
     enum: ['employee', 'employer', 'admin'],
@@ -123,38 +115,6 @@ const userSchema = new mongoose.Schema({
     businessSummaryCompleted: { type: Boolean, default: false },
     completed: { type: Boolean, default: false },
     currentStep: { type: Number, default: 1 }
-  },
-  
-  // Legacy fields for backward compatibility (can be removed later)
-  dateOfBirth: { type: Date },
-  address: { type: String },
-  profileImage: { type: String },
-  showEmailOnProfile: { type: Boolean, default: true },
-  showMobileOnProfile: { type: Boolean, default: true },
-  personalSummary: { type: String },
-  
-  // Additional Profile Fields (legacy)
-  profile: {
-    firstName: { type: String },
-    lastName: { type: String },
-    gender: { type: String },
-    city: { type: String },
-    state: { type: String },
-    zipCode: { type: String },
-    country: { type: String },
-    profilePicture: { type: String },
-    companyName: { type: String },
-    companySize: { type: String },
-    industry: { type: String },
-    website: { type: String },
-    description: { type: String },
-    companyLogo: { type: String },
-    summary: { type: String },
-    skills: [{ type: String }],
-    certifications: [{ type: String }],
-    languages: [{ type: String }],
-    workExperience: [{ type: Object }],
-    availability: { type: Object }
   },
   
   // Subscription

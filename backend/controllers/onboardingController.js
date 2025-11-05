@@ -57,8 +57,10 @@ exports.updatePersonalDetails = async (req, res) => {
             showEmailOnProfile: showEmailOnProfile ?? true,
             showMobileOnProfile: showMobileOnProfile ?? true,
           },
-          'onboarding.personalDetailsCompleted': true,
-          'onboarding.currentStep': 2,
+          onboarding: {
+            personalDetailsCompleted: true,
+            currentStep: 2,
+          }
         });
         isNewUser = true;
       }
@@ -290,28 +292,36 @@ exports.updatePersonalSummary = async (req, res) => {
 
     console.log('Updating personal summary for user:', req.user.id, 'Data:', personalSummary);
 
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      {
-        $set: {
-          'personalSummary.summary': personalSummary,
-          'onboarding.personalSummaryCompleted': true,
-          'onboarding.currentStep': 3,
-        },
-      },
-      { new: true, runValidators: true }
-    ).select('-password');
-
+    // Get user first to properly update nested schema
+    const user = await User.findById(req.user.id);
+    
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    // Initialize personalSummary object if it doesn't exist
+    if (!user.personalSummary) {
+      user.personalSummary = {};
+    }
+
+    // Update the summary field
+    user.personalSummary.summary = personalSummary;
+    user.onboarding.personalSummaryCompleted = true;
+    user.onboarding.currentStep = 3;
+
+    // Save the user
+    await user.save();
+
     console.log('Personal summary updated successfully');
+
+    // Remove password from response
+    const userResponse = user.toObject();
+    delete userResponse.password;
 
     res.json({
       success: true,
       message: 'Personal summary updated successfully',
-      user,
+      user: userResponse,
     });
   } catch (error) {
     console.error('Update personal summary error:', error);

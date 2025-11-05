@@ -106,7 +106,7 @@ exports.signup = async (req, res) => {
       profileImage,
       showEmailOnProfile,
       showMobileOnProfile,
-      personalSummary
+      personalSummary: personalSummary ? { summary: personalSummary } : undefined
     };
 
     // Add work experience for employees
@@ -197,8 +197,13 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    console.log('=== LOGIN ATTEMPT ===');
+    console.log('Email:', email);
+    console.log('Password provided:', password ? 'Yes' : 'No');
+
     // Validate input
     if (!email || !password) {
+      console.log('❌ Missing email or password');
       return res.status(400).json({
         error: 'Please provide email and password'
       });
@@ -206,21 +211,31 @@ exports.login = async (req, res) => {
 
     // Find user
     const user = await User.findOne({ email: email.toLowerCase() });
+    console.log('User found:', user ? `Yes (${user.email})` : 'No');
+    
     if (!user) {
+      console.log('❌ User not found in database');
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    console.log('User password hash:', user.password ? user.password.substring(0, 20) + '...' : 'No password');
+
     // Check if account is locked
     if (user.isLocked()) {
+      console.log('❌ Account is locked');
       return res.status(423).json({
         error: 'Account is locked due to too many failed login attempts. Please try again later.'
       });
     }
 
     // Verify password
+    console.log('Comparing passwords...');
     const isPasswordValid = await user.comparePassword(password);
+    console.log('Password valid:', isPasswordValid ? '✅ Yes' : '❌ No');
+    
     if (!isPasswordValid) {
       await user.incLoginAttempts();
+      console.log('❌ Invalid password - login attempts incremented');
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
@@ -363,7 +378,10 @@ exports.updateOnboardingStep = async (req, res) => {
         break;
       
       case 2: // Personal Summary
-        user.personalSummary = stepData.personalSummary || user.personalSummary;
+        if (!user.personalSummary) {
+          user.personalSummary = {};
+        }
+        user.personalSummary.summary = stepData.personalSummary || user.personalSummary.summary;
         break;
       
       case 3: // Work Experience

@@ -1,65 +1,54 @@
 import { NextResponse } from 'next/server';
-import { getUserFromToken } from '@/lib/auth';
-import clientPromise from '@/lib/mongodb';
-import { ObjectId } from 'mongodb';
 
-export async function PATCH(request) {
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+
+export async function PUT(request) {
   try {
-    const user = await getUserFromToken();
-    
-    if (!user) {
+    // Get token from cookies
+    const token = request.cookies.get('token')?.value;
+
+    if (!token) {
+      console.error('No token found in cookies');
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { message: 'Unauthorized - No token found' },
         { status: 401 }
       );
     }
 
-    const body = await request.json();
-    
-    // Remove fields that shouldn't be updated directly
-    const { _id, password, email, ...updateData } = body;
+    // Get update data from request
+    const updateData = await request.json();
+    console.log('Update data received:', updateData);
 
-    // Connect to MongoDB
-    const client = await clientPromise;
-    const db = client.db('sharetribe');
-    const usersCollection = db.collection('users');
-
-    // Update user
-    const result = await usersCollection.findOneAndUpdate(
-      { _id: new ObjectId(user.userId) },
-      { 
-        $set: { 
-          ...updateData,
-          updatedAt: new Date(),
-        } 
+    // Forward request to Express backend
+    console.log('Forwarding to backend:', `${BACKEND_URL}/api/users/profile`);
+    const backendResponse = await fetch(`${BACKEND_URL}/api/users/profile`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       },
-      { 
-        returnDocument: 'after',
-        projection: { password: 0 }
-      }
-    );
+      body: JSON.stringify(updateData)
+    });
 
-    if (!result) {
+    console.log('Backend response status:', backendResponse.status);
+    
+    const data = await backendResponse.json();
+    console.log('Backend response data:', data);
+
+    if (!backendResponse.ok) {
       return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
+        { message: data.message || data.error || 'Failed to update profile' },
+        { status: backendResponse.status }
       );
     }
 
-    return NextResponse.json(
-      {
-        success: true,
-        user: {
-          id: result._id.toString(),
-          ...result,
-        },
-      },
-      { status: 200 }
-    );
+    return NextResponse.json(data);
+
   } catch (error) {
-    console.error('Update user error:', error);
+    console.error('Error updating profile:', error);
+
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { message: 'Internal server error', error: error.message },
       { status: 500 }
     );
   }

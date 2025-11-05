@@ -21,11 +21,18 @@ export default function SignupPage() {
     agreeToTerms: false,
   });
   const [error, setError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setPasswordError('');
+
+    if (formData.password.length < 8) {
+      setPasswordError('At least 8 characters required');
+      return;
+    }
 
     if (!formData.agreeToTerms) {
       setError('Please agree to the Terms and Conditions');
@@ -165,10 +172,18 @@ export default function SignupPage() {
                   type="password"
                   placeholder="Create a password"
                   value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, password: e.target.value });
+                    if (passwordError) setPasswordError('');
+                  }}
                   required
-                  className={`${getInputClassName()} text-[13px]`}
+                  className={`${getInputClassName(passwordError)} text-[13px]`}
                 />
+                {passwordError && (
+                  <p className="text-red-500 text-[11px] mt-1 ml-4">
+                    {passwordError}
+                  </p>
+                )}
               </div>
 
               {/* Terms Checkbox */}

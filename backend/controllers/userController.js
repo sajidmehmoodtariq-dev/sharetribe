@@ -73,3 +73,71 @@ exports.deleteUser = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// Update profile (authenticated user)
+exports.updateProfile = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    const {
+      fullName,
+      email,
+      phoneNumber,
+      dateOfBirth,
+      address,
+      profileImage,
+      summary,
+      currentJobTitle,
+      role
+    } = req.body;
+
+    // Find user
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Update basic fields
+    if (fullName) user.fullName = fullName;
+    if (email) user.email = email;
+    if (phoneNumber) user.mobileNumber = phoneNumber;
+
+    // Update personalDetails
+    if (!user.personalDetails) {
+      user.personalDetails = {};
+    }
+    if (dateOfBirth) user.personalDetails.dateOfBirth = dateOfBirth;
+    if (address) user.personalDetails.address = address;
+    if (profileImage) user.personalDetails.profileImage = profileImage;
+
+    // Update personalSummary
+    if (!user.personalSummary) {
+      user.personalSummary = {};
+    }
+    if (summary !== undefined) user.personalSummary.summary = summary;
+
+    // Update workExperience
+    if (!user.workExperience) {
+      user.workExperience = {};
+    }
+    if (currentJobTitle) user.workExperience.currentJobTitle = currentJobTitle;
+    if (role) user.workExperience.role = role;
+
+    // Save user
+    await user.save();
+
+    // Return updated user without password
+    const userResponse = user.toObject();
+    delete userResponse.password;
+
+    res.json({
+      message: 'Profile updated successfully',
+      user: userResponse
+    });
+
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({ message: 'Internal server error', error: error.message });
+  }
+};
