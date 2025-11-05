@@ -81,7 +81,7 @@ export default function WorkExperiencePage() {
       }
 
       // Update user profile with work experience
-      const response = await fetch('http://localhost:5000/api/user/onboarding/work-experience', {
+      const response = await fetch('http://localhost:5000/api/onboarding/work-experience', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -11,6 +11,26 @@ const generateToken = (userId) => {
   );
 };
 
+// @desc    Check if email exists
+// @route   POST /api/auth/check-email
+// @access  Public
+exports.checkEmail = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+
+    res.json({ exists: !!existingUser });
+  } catch (error) {
+    console.error('Check email error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
 // @desc    Register a new user (complete signup)
 // @route   POST /api/auth/signup
 // @access  Public

@@ -6,8 +6,12 @@ const { protect } = require('../middleware/auth');
 // Public route for signup checkout
 router.post('/create-checkout-session', stripeController.createCheckoutSession);
 
+// Verify session after payment (public) - must be before webhook
+router.post('/verify-session', stripeController.verifySession);
+
 // Webhook route (public but verified with Stripe signature)
-router.post('/webhook', express.raw({ type: 'application/json' }), stripeController.handleWebhook);
+// Note: Raw body parser is applied in server.js for this specific route
+router.post('/webhook', stripeController.handleWebhook);
 
 // Protected routes
 router.get('/subscription', protect, stripeController.getSubscription);

@@ -10,20 +10,18 @@ export default function SignupSuccessPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [countdown, setCountdown] = useState(3);
+  const [isAuthenticating, setIsAuthenticating] = useState(true);
 
   useEffect(() => {
     const sessionId = searchParams.get('session_id');
     
     if (!sessionId) {
-      // No session ID, redirect to login
       router.push('/login');
       return;
     }
 
-    // Clear any signup-related session storage
-    sessionStorage.removeItem('signupData');
-    sessionStorage.removeItem('selectedGoal');
-    sessionStorage.removeItem('userRole');
+    // Just mark as authenticated and proceed to onboarding
+    setIsAuthenticating(false);
   }, [router, searchParams]);
 
   useEffect(() => {
@@ -36,16 +34,22 @@ export default function SignupSuccessPage() {
   }, []);
 
   useEffect(() => {
-    if (countdown <= 0) {
+    if (countdown <= 0 && !isAuthenticating) {
       router.push('/onboarding/personal-details');
     }
-  }, [countdown, router]);
+  }, [countdown, isAuthenticating, router]);
 
   return (
     <div 
       className="min-h-screen flex items-center justify-center"
       style={getBackgroundStyle()}
     >
+      {isAuthenticating ? (
+        <div className={`text-center ${getTextClassName()}`}>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00EA72] mx-auto mb-4"></div>
+          <p>Setting up your account...</p>
+        </div>
+      ) : (
       <div className="w-full max-w-[375px] mx-auto h-screen flex flex-col">
         {/* Logo at top */}
         <div className="flex justify-center pt-8 pb-6">
@@ -102,6 +106,7 @@ export default function SignupSuccessPage() {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

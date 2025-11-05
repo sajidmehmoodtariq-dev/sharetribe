@@ -1,53 +1,71 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
-// Sub-schemas for better organization
-const availabilitySchema = new mongoose.Schema({
-  morning: { type: Boolean, default: false },
-  afternoon: { type: Boolean, default: false },
-  evening: { type: Boolean, default: false },
-  dateFrom: { type: Date },
-  dateTo: { type: Date },
-  noticePreference: { 
-    type: String, 
-    enum: ['immediately', 'any-other', '1-week', '2-weeks'] 
-  }
+// Personal Details Schema - Step 1
+const personalDetailsSchema = new mongoose.Schema({
+  dateOfBirth: { type: Date },
+  address: { type: String },
+  profileImage: { type: String }, // Base64 compressed image
+  showEmailOnProfile: { type: Boolean, default: true },
+  showMobileOnProfile: { type: Boolean, default: true }
 }, { _id: false });
 
-const employmentTypeSchema = new mongoose.Schema({
-  fullTime: { type: Boolean, default: false },
-  partTime: { type: Boolean, default: false },
-  casual: { type: Boolean, default: false }
+// Personal Summary Schema - Step 2
+const personalSummarySchema = new mongoose.Schema({
+  summary: { type: String },
+  skills: [{ type: String }],
+  certifications: [{ type: String }],
+  languages: [{ type: String }]
 }, { _id: false });
 
+// Work Experience Schema - Step 3
 const workExperienceSchema = new mongoose.Schema({
   workStatus: { 
     type: String, 
     enum: ['first-job', 'worked-before', 'currently-working'] 
   },
-  employmentTypes: employmentTypeSchema,
-  selectedIndustry: { type: String },
-  selectedRole: { type: String },
-  jobTitle: { type: String },
-  companyName: { type: String },
-  employmentDurationFrom: { type: Date },
-  employmentDurationTo: { type: Date },
-  workExperienceSummary: { type: String },
+  employmentTypes: [{ type: String }], // ['full-time', 'part-time', 'casual']
+  industry: { type: String },
+  role: { type: String },
+  yearsOfExperience: { type: String },
   highestEducation: { type: String },
-  skills: [{ type: String }],
-  licenses: [{ type: String }]
+  currentJobTitle: { type: String },
+  currentCompany: { type: String },
+  previousJobs: [{
+    jobTitle: { type: String },
+    companyName: { type: String },
+    startDate: { type: Date },
+    endDate: { type: Date },
+    description: { type: String }
+  }]
 }, { _id: false });
 
-const businessDetailsSchema = new mongoose.Schema({
-  businessName: { type: String },
-  country: { type: String },
-  businessAddress: { type: String },
+// Availability Schema - Step 4
+const availabilitySchema = new mongoose.Schema({
+  status: { type: String }, // 'available', 'not-available', etc.
+  dateRange: {
+    from: { type: Date },
+    to: { type: Date }
+  },
+  noticePreference: { 
+    type: String, 
+    enum: ['immediately', '1-week', '2-weeks', '1-month', 'flexible'] 
+  },
+  preferredWorkTimes: [{ type: String }] // ['morning', 'afternoon', 'evening']
+}, { _id: false });
+
+// Business Summary Schema - For Employers
+const businessSummarySchema = new mongoose.Schema({
+  companyName: { type: String },
+  companySize: { type: String },
   industry: { type: String },
-  businessSize: { type: String },
-  yourRole: { type: String },
   website: { type: String },
+  description: { type: String },
+  companyLogo: { type: String }, // Base64 compressed image
+  country: { type: String },
+  address: { type: String },
   abn: { type: String },
-  businessSummary: { type: String }
+  yourRole: { type: String }
 }, { _id: false });
 
 const userSchema = new mongoose.Schema({
@@ -89,15 +107,33 @@ const userSchema = new mongoose.Schema({
     enum: ['find-work', 'find-workers', 'search-companies']
   },
   
-  // Personal Details (Employee)
+  // Onboarding Data - Each page stored as separate object
+  personalDetails: personalDetailsSchema,
+  personalSummary: personalSummarySchema,
+  workExperience: workExperienceSchema,
+  availability: availabilitySchema,
+  businessSummary: businessSummarySchema,
+  
+  // Onboarding Progress Tracking
+  onboarding: {
+    personalDetailsCompleted: { type: Boolean, default: false },
+    personalSummaryCompleted: { type: Boolean, default: false },
+    workExperienceCompleted: { type: Boolean, default: false },
+    availabilityCompleted: { type: Boolean, default: false },
+    businessSummaryCompleted: { type: Boolean, default: false },
+    completed: { type: Boolean, default: false },
+    currentStep: { type: Number, default: 1 }
+  },
+  
+  // Legacy fields for backward compatibility (can be removed later)
   dateOfBirth: { type: Date },
   address: { type: String },
-  profileImage: { type: String }, // Base64 or URL
+  profileImage: { type: String },
   showEmailOnProfile: { type: Boolean, default: true },
   showMobileOnProfile: { type: Boolean, default: true },
   personalSummary: { type: String },
   
-  // Additional Profile Fields
+  // Additional Profile Fields (legacy)
   profile: {
     firstName: { type: String },
     lastName: { type: String },
@@ -106,13 +142,13 @@ const userSchema = new mongoose.Schema({
     state: { type: String },
     zipCode: { type: String },
     country: { type: String },
-    profilePicture: { type: String }, // Base64 compressed image
+    profilePicture: { type: String },
     companyName: { type: String },
     companySize: { type: String },
     industry: { type: String },
     website: { type: String },
     description: { type: String },
-    companyLogo: { type: String }, // Base64 compressed image
+    companyLogo: { type: String },
     summary: { type: String },
     skills: [{ type: String }],
     certifications: [{ type: String }],
@@ -121,25 +157,6 @@ const userSchema = new mongoose.Schema({
     availability: { type: Object }
   },
   
-  // Onboarding tracking
-  onboarding: {
-    personalDetailsCompleted: { type: Boolean, default: false },
-    workExperienceCompleted: { type: Boolean, default: false },
-    availabilityCompleted: { type: Boolean, default: false },
-    businessSummaryCompleted: { type: Boolean, default: false },
-    personalSummaryCompleted: { type: Boolean, default: false },
-    completed: { type: Boolean, default: false }
-  },
-  
-  // Work Experience (Employee)
-  workExperience: workExperienceSchema,
-  
-  // Availability (Employee)
-  availability: availabilitySchema,
-  
-  // Business Details (Employer)
-  businessDetails: businessDetailsSchema,
-  
   // Subscription
   subscription: {
     type: mongoose.Schema.Types.ObjectId,
@@ -147,19 +164,10 @@ const userSchema = new mongoose.Schema({
   },
   subscriptionStatus: {
     type: String,
-    enum: ['none', 'pending', 'active', 'cancelled', 'expired'],
+    enum: ['none', 'pending', 'active', 'cancelled', 'expired', 'failed'],
     default: 'none'
   },
-  
-  // Profile Completion
-  profileCompleted: {
-    type: Boolean,
-    default: false
-  },
-  onboardingStep: {
-    type: Number,
-    default: 0
-  },
+  subscriptionCustomerId: { type: String }, // Stripe customer ID
   
   // Account Status
   isActive: {
@@ -167,6 +175,10 @@ const userSchema = new mongoose.Schema({
     default: true
   },
   isVerified: {
+    type: Boolean,
+    default: false
+  },
+  isEmailVerified: {
     type: Boolean,
     default: false
   },
@@ -183,9 +195,10 @@ const userSchema = new mongoose.Schema({
 // Indexes for better query performance
 userSchema.index({ email: 1 });
 userSchema.index({ role: 1 });
-userSchema.index({ 'workExperience.selectedIndustry': 1 });
-userSchema.index({ 'workExperience.selectedRole': 1 });
+userSchema.index({ 'workExperience.industry': 1 });
+userSchema.index({ 'workExperience.role': 1 });
 userSchema.index({ subscriptionStatus: 1 });
+userSchema.index({ subscriptionCustomerId: 1 });
 
 // Hash password before saving
 userSchema.pre('save', async function(next) {
@@ -237,25 +250,20 @@ userSchema.methods.incLoginAttempts = function() {
 // Virtual for profile completion percentage
 userSchema.virtual('profileCompletionPercentage').get(function() {
   let completed = 0;
-  const total = this.role === 'employer' ? 8 : 10;
+  const total = this.role === 'employer' ? 5 : 6;
   
+  // Basic info
   if (this.fullName) completed++;
   if (this.email) completed++;
-  if (this.mobileNumber) completed++;
   
   if (this.role === 'employee') {
-    if (this.personalSummary) completed++;
-    if (this.workExperience && this.workExperience.workStatus) completed++;
-    if (this.workExperience && this.workExperience.selectedIndustry) completed++;
-    if (this.workExperience && this.workExperience.selectedRole) completed++;
-    if (this.availability && this.availability.dateFrom) completed++;
-    if (this.profileImage) completed++;
-    if (this.address) completed++;
+    if (this.onboarding.personalDetailsCompleted) completed++;
+    if (this.onboarding.personalSummaryCompleted) completed++;
+    if (this.onboarding.workExperienceCompleted) completed++;
+    if (this.onboarding.availabilityCompleted) completed++;
   } else if (this.role === 'employer') {
-    if (this.businessDetails && this.businessDetails.businessName) completed++;
-    if (this.businessDetails && this.businessDetails.businessAddress) completed++;
-    if (this.businessDetails && this.businessDetails.industry) completed++;
-    if (this.businessDetails && this.businessDetails.businessSummary) completed++;
+    if (this.onboarding.personalDetailsCompleted) completed++;
+    if (this.onboarding.businessSummaryCompleted) completed++;
     if (this.subscriptionStatus === 'active') completed++;
   }
   

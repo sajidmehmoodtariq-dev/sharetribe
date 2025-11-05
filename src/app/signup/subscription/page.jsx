@@ -74,12 +74,6 @@ export default function SubscriptionPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        if (data.error && data.error.includes('already exists')) {
-          // User already exists, redirect to login
-          sessionStorage.setItem('loginMessage', 'User already exists. Please login.');
-          router.push('/login');
-          return;
-        }
         throw new Error(data.error || 'Failed to create checkout session');
       }
 
@@ -120,12 +114,6 @@ export default function SubscriptionPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        if (data.error && data.error.includes('already exists')) {
-          // User already exists, redirect to login
-          sessionStorage.setItem('loginMessage', 'User already exists. Please login.');
-          router.push('/login');
-          return;
-        }
         throw new Error(data.error || 'Signup failed');
       }
 

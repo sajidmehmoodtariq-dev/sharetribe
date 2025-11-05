@@ -35,16 +35,28 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
+      // Check if user already exists
+      const checkResponse = await fetch('http://localhost:5000/api/auth/check-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formData.email }),
+      });
+
+      const checkData = await checkResponse.json();
+
+      if (checkData.exists) {
+        setError('This email is already registered. Please login instead.');
+        setLoading(false);
+        return;
+      }
+
       // Store signup data in sessionStorage to use in next steps
-      sessionStorage.setItem('signupData', JSON.stringify(formData));
-      
-      // Navigate to role selection
       sessionStorage.setItem('signupData', JSON.stringify(formData));
       
       // Redirect to role selection
       router.push('/signup/role-selection');
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Something went wrong');
     } finally {
       setLoading(false);
     }

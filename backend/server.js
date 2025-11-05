@@ -14,8 +14,11 @@ app.use(cors({
 }));
 app.use(cookieParser());
 
-// Body parser - JSON for most routes
+// Body parser - Special handling for Stripe webhook (needs raw body)
+// Must be registered BEFORE JSON body parser
 app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
+
+// Body parser - JSON for all other routes
 app.use(bodyParser.json({ limit: '10mb' })); // Increased limit for profile images
 app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -54,7 +57,7 @@ const onboardingRoutes = require('./routes/onboardingRoutes');
 app.use('/api/auth', authRoutes);
 app.use('/api/stripe', stripeRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/user/onboarding', onboardingRoutes);
+app.use('/api/onboarding', onboardingRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

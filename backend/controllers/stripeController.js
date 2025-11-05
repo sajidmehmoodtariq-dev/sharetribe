@@ -220,15 +220,81 @@ exports.cancelSubscription = async (req, res) => {
   }
 };
 
+// @desc    Verify Stripe session and generate token
+// @route   POST /api/stripe/verify-session
+// @access  Public
+exports.verifySession = async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+
+    if (!sessionId) {
+      return res.status(400).json({ error: 'Session ID is required' });
+    }
+
+    // Retrieve session from Stripe
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // Find user by customer ID or email
+    const user = await User.findOne({
+      $or: [
+        { subscriptionCustomerId: session.customer },
+        { email: session.metadata?.email || session.customer_details?.email }
+      ]
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Generate JWT token
+    const jwt = require('jsonwebtoken');
+    const token = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET || 'your-secret-key-change-in-production',
+      { expiresIn: '30d' }
+    );
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user._id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    console.error('Verify session error:', error);
+    res.status(500).json({ error: 'Failed to verify session' });
+  }
+};
+
 // Helper functions for webhook events
 async function handleCheckoutCompleted(session) {
   try {
+    console.log('=== WEBHOOK: Checkout Completed ===');
+    console.log('Session ID:', session.id);
+    console.log('Customer ID:', session.customer);
+    console.log('Payment Intent:', session.payment_intent);
+    console.log('Metadata:', session.metadata);
+    
     const metadata = session.metadata;
+    
+    if (!metadata || !metadata.email) {
+      console.error('Missing metadata or email in session');
+      return;
+    }
     
     // Check if user already exists
     let user = await User.findOne({ email: metadata.email });
     
     if (!user) {
+      console.log('Creating new user account for:', metadata.email);
       // Create new user account
       const bcrypt = require('bcryptjs');
       const hashedPassword = await bcrypt.hash(metadata.password, 10);
@@ -240,21 +306,31 @@ async function handleCheckoutCompleted(session) {
         mobileNumber: metadata.mobileNumber || '',
         role: metadata.role || 'employee',
         selectedGoal: metadata.selectedGoal || '',
-        subscriptionCustomerId: metadata.stripeCustomerId,
+        subscriptionCustomerId: metadata.stripeCustomerId || session.customer,
         subscriptionStatus: 'active',
         isEmailVerified: true
       });
+      console.log('User created with ID:', user._id);
+    } else {
+      console.log('User already exists:', user._id);
     }
 
     // Create subscription record
+    console.log('Creating subscription record...');
     const packageInfo = PACKAGES[metadata.packageId];
+    
+    if (!packageInfo) {
+      console.error('Invalid package ID:', metadata.packageId);
+      return;
+    }
+    
     const subscription = await Subscription.create({
       user: user._id,
       packageName: metadata.packageId,
       price: packageInfo.price,
       currency: 'usd',
       status: 'active',
-      stripeCustomerId: metadata.stripeCustomerId,
+      stripeCustomerId: metadata.stripeCustomerId || session.customer,
       stripeCheckoutSessionId: session.id,
       stripePaymentId: session.payment_intent,
       startDate: new Date(),
@@ -268,15 +344,18 @@ async function handleCheckoutCompleted(session) {
         paidAt: new Date()
       }]
     });
+    
+    console.log('Subscription created with ID:', subscription._id);
 
     // Update user with subscription
     user.subscription = subscription._id;
     user.subscriptionStatus = 'active';
     await user.save();
     
-    console.log('User account created successfully:', user.email);
+    console.log('✅ User and subscription setup complete for:', user.email);
   } catch (error) {
-    console.error('Error in handleCheckoutCompleted:', error);
+    console.error('❌ Error in handleCheckoutCompleted:', error);
+    console.error('Error stack:', error.stack);
   }
 }
 

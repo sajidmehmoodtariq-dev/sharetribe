@@ -1,1 +1,1 @@
-Let me find the proper end of the function and remove everything after it
+cd "$env:USERPROFILE\stripe-cli"; .\stripe.exe listen --forward-to localhost:5000/api/stripe/webhook

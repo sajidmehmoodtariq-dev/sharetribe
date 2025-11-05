@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,6 +23,26 @@ export default function PersonalDetailsPage() {
   });
   const [profileImage, setProfileImage] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Get signup data from sessionStorage
+  useEffect(() => {
+    const signupDataStr = sessionStorage.getItem('signupData');
+    if (signupDataStr) {
+      try {
+        const signupData = JSON.parse(signupDataStr);
+        setFormData(prev => ({
+          ...prev,
+          fullName: signupData.fullName || '',
+          email: signupData.email || '',
+          mobileNumber: signupData.mobileNumber || '',
+        }));
+      } catch (error) {
+        console.error('Error parsing signup data:', error);
+      }
+    }
+    setIsLoading(false);
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -65,30 +85,52 @@ export default function PersonalDetailsPage() {
 
   const handleContinue = async () => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        alert('Please login first');
-        router.push('/login');
-        return;
+      // Get signup data from sessionStorage
+      const signupDataStr = sessionStorage.getItem('signupData');
+      const selectedGoal = sessionStorage.getItem('selectedGoal');
+      const userRole = sessionStorage.getItem('userRole');
+      
+      let requestBody = {
+        ...formData,
+        profileImage,
+      };
+
+      // If this is first save (coming from signup), include signup data
+      if (signupDataStr) {
+        const signupData = JSON.parse(signupDataStr);
+        requestBody = {
+          ...requestBody,
+          email: signupData.email,
+          password: signupData.password,
+          fullName: formData.fullName || signupData.fullName,
+          mobileNumber: formData.mobileNumber || signupData.mobileNumber,
+          role: userRole || 'employee',
+          selectedGoal,
+        };
       }
 
-      // Update user profile with personal details
+      // Save personal details (and create user if first time)
       const response = await fetch('http://localhost:5000/api/onboarding/personal-details', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          ...formData,
-          profileImage
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to save personal details');
+      }
+
+      // If we got a token, store it (first save)
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+        // Clear signup data since account is created
+        sessionStorage.removeItem('signupData');
+        sessionStorage.removeItem('selectedGoal');
+        sessionStorage.removeItem('userRole');
       }
 
       // Navigate to personal summary
@@ -107,6 +149,16 @@ export default function PersonalDetailsPage() {
         style={getBackgroundStyle()}
       />
       
+      {/* Loading State */}
+      {isLoading ? (
+        <div className="relative z-10 min-h-screen flex items-center justify-center">
+          <div className={`text-center ${getTextClassName()}`}>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00EA72] mx-auto mb-4"></div>
+            <p>Loading your profile...</p>
+          </div>
+        </div>
+      ) : (
+      <>
       {/* Content Container */}
       <div className="relative z-10 min-h-screen flex items-center justify-center">
       <div className="w-full max-w-[375px] mx-auto h-screen flex flex-col">
@@ -322,6 +374,8 @@ export default function PersonalDetailsPage() {
         </div>
       </div>
     </div>
+    </>
+    )}
     </>
   );
 }

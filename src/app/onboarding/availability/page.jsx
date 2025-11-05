@@ -46,7 +46,7 @@ export default function AvailabilityPage() {
       }
 
       // Update user profile with availability
-      const response = await fetch('http://localhost:5000/api/user/onboarding/availability', {
+      const response = await fetch('http://localhost:5000/api/onboarding/availability', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
