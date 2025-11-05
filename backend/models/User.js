@@ -144,6 +144,11 @@ const userSchema = new mongoose.Schema({
   },
   verificationToken: { type: String },
   
+  // Password Reset
+  resetPasswordToken: { type: String },
+  resetPasswordCode: { type: String },
+  resetPasswordExpires: { type: Date },
+  
   // Metadata
   lastLogin: { type: Date },
   loginAttempts: { type: Number, default: 0 },

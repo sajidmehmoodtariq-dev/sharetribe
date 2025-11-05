@@ -56,13 +56,40 @@ export default function EmailVerificationPage() {
     setLoading(true);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const resetToken = sessionStorage.getItem('resetToken');
       
-      // Redirect to reset password page or success page
-      router.push('/reset-password');
+      if (!resetToken) {
+        setError('Session expired. Please request a new verification code.');
+        router.push('/forgot-password');
+        return;
+      }
+
+      // Verify the code
+      const response = await fetch('http://localhost:5000/api/auth/verify-reset-code', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          code: verificationCode,
+          resetToken,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Invalid verification code');
+      }
+
+      // Store the verified code for password reset
+      sessionStorage.setItem('verifiedCode', verificationCode);
+      
+      // Redirect to reset password page
+      router.push(`/reset-password?email=${encodeURIComponent(email)}`);
     } catch (err) {
-      setError('Invalid verification code. Please try again.');
+      setError(err.message || 'Invalid verification code. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -70,12 +97,37 @@ export default function EmailVerificationPage() {
 
   const handleResendCode = async () => {
     setError('');
+    setLoading(true);
+    
     try {
-      // Simulate resend API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      // Show success message or handle resend logic
+      const response = await fetch('http://localhost:5000/api/auth/forgot-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to resend code');
+      }
+
+      // Update reset token
+      if (data.resetToken) {
+        sessionStorage.setItem('resetToken', data.resetToken);
+      }
+      
+      // Clear current code
+      setCode(['', '', '', '', '']);
+      
+      // Show success message (you can add a success state if needed)
+      alert('A new verification code has been sent to your email.');
     } catch (err) {
-      setError('Failed to resend code. Please try again.');
+      setError(err.message || 'Failed to resend code. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 

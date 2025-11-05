@@ -22,13 +22,29 @@ export default function ForgotPasswordPage() {
     setLoading(true);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const response = await fetch('http://localhost:5000/api/auth/forgot-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send verification code');
+      }
+
+      // Store reset token in session storage for verification
+      if (data.resetToken) {
+        sessionStorage.setItem('resetToken', data.resetToken);
+      }
       
       // Redirect to verification page with email
       router.push(`/forgot-password/verification?email=${encodeURIComponent(email)}`);
     } catch (err) {
-      setError('Failed to send verification code. Please try again.');
+      setError(err.message || 'Failed to send verification code. Please try again.');
     } finally {
       setLoading(false);
     }

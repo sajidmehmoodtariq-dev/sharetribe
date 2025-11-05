@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -9,12 +9,22 @@ import Image from 'next/image';
 
 export default function ResetPasswordPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const email = searchParams.get('email');
+  
   const [formData, setFormData] = useState({
     newPassword: '',
     confirmPassword: '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    // Verify we have all required data
+    if (!email || !sessionStorage.getItem('resetToken') || !sessionStorage.getItem('verifiedCode')) {
+      router.push('/forgot-password');
+    }
+  }, [email, router]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -33,17 +43,50 @@ export default function ResetPasswordPage() {
     setLoading(true);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const resetToken = sessionStorage.getItem('resetToken');
+      const verifiedCode = sessionStorage.getItem('verifiedCode');
+
+      if (!resetToken || !verifiedCode) {
+        setError('Session expired. Please start over.');
+        router.push('/forgot-password');
+        return;
+      }
+
+      const response = await fetch('http://localhost:5000/api/auth/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          code: verifiedCode,
+          resetToken,
+          newPassword: formData.newPassword,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to reset password');
+      }
+
+      // Clear session storage
+      sessionStorage.removeItem('resetToken');
+      sessionStorage.removeItem('verifiedCode');
       
       // Redirect to success page
       router.push('/reset-password/success');
     } catch (err) {
-      setError('Failed to update password. Please try again.');
+      setError(err.message || 'Failed to update password. Please try again.');
     } finally {
       setLoading(false);
     }
   };
+
+  if (!email) {
+    return null; // Will redirect in useEffect
+  }
 
   return (
     <div 
