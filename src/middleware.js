@@ -11,6 +11,8 @@ export function middleware(request) {
     '/signup', 
     '/signup/role-selection', 
     '/signup/subscription',
+    '/forgot-password',
+    '/reset-password',
     '/employee/personal-details',
     '/employee/personal-summary',
     '/employee/work-experience',
@@ -23,24 +25,17 @@ export function middleware(request) {
   const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
 
   // Protected routes
-  const protectedRoutes = ['/dashboard', '/employee/search-jobs'];
+  const protectedRoutes = ['/home', '/dashboard'];
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
 
   // If trying to access protected route without token
   if (!token && isProtectedRoute) {
-    return NextResponse.redirect(new URL('/login', request.url));
+    return NextResponse.redirect(new URL('/login/role-selection', request.url));
   }
 
-  // If logged in and trying to access login/signup, redirect to appropriate dashboard
-  if (token && (pathname === '/login' || pathname === '/signup')) {
-    const decoded = verifyToken(token);
-    if (decoded) {
-      if (decoded.role === 'employee') {
-        return NextResponse.redirect(new URL('/employee/search-jobs', request.url));
-      } else if (decoded.role === 'employer') {
-        return NextResponse.redirect(new URL('/dashboard', request.url));
-      }
-    }
+  // If logged in and trying to access login/signup, redirect to home
+  if (token && (pathname === '/login' || pathname === '/signup' || pathname === '/')) {
+    return NextResponse.redirect(new URL('/home', request.url));
   }
 
   return NextResponse.next();

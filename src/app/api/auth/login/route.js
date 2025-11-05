@@ -1,85 +1,59 @@
 import { NextResponse } from 'next/server';
-import bcrypt from 'bcryptjs';
-import clientPromise from '@/lib/mongodb';
-import { generateToken, setAuthCookie } from '@/lib/auth';
-import { sanitizeUser } from '@/models/User';
+
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:5000';
 
 export async function POST(request) {
   try {
     const body = await request.json();
     const { email, password } = body;
-    
-    console.log('=== Login Attempt ===');
-    console.log('Email:', email);
-    console.log('Password provided:', password ? 'Yes' : 'No');
-    console.log('Password length:', password?.length);
 
     // Validate required fields
     if (!email || !password) {
-      console.error('Missing email or password');
       return NextResponse.json(
         { error: 'Email and password are required' },
         { status: 400 }
       );
     }
 
-    // Connect to MongoDB
-    const client = await clientPromise;
-    const db = client.db('sharetribe');
-    const usersCollection = db.collection('users');
+    // Call Express backend
+    const backendResponse = await fetch(`${BACKEND_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    });
 
-    // Find user by email
-    const user = await usersCollection.findOne({ email });
-    console.log('User found:', user ? 'Yes' : 'No');
-    
-    if (!user) {
-      console.error('User not found for email:', email);
+    const data = await backendResponse.json();
+
+    if (!backendResponse.ok) {
       return NextResponse.json(
-        { error: 'Invalid credentials' },
-        { status: 401 }
+        { error: data.error || 'Login failed' },
+        { status: backendResponse.status }
       );
     }
 
-    console.log('User role:', user.role);
-    console.log('Stored password hash:', user.password?.substring(0, 20) + '...');
-    console.log('Hash starts with $2:', user.password?.startsWith('$2'));
-
-    // Verify password
-    const isValidPassword = await bcrypt.compare(password, user.password);
-    console.log('Password valid:', isValidPassword);
-    
-    if (!isValidPassword) {
-      console.error('Password comparison failed');
-      // Check if password was stored in plain text by mistake
-      if (password === user.password) {
-        console.error('WARNING: Password stored in plain text!');
-      }
-      return NextResponse.json(
-        { error: 'Invalid credentials' },
-        { status: 401 }
-      );
-    }
-
-    // Generate JWT token
-    const token = generateToken(user._id.toString(), user.email, user.role);
-
-    // Create response with cookie
+    // Create response
     const response = NextResponse.json(
       {
         success: true,
-        user: sanitizeUser({
-          id: user._id.toString(),
-          email: user.email,
-          fullName: user.fullName,
-          role: user.role,
-        }),
+        user: data.user,
       },
       { status: 200 }
     );
 
-    // Set cookie
-    const cookieOptions = setAuthCookie(token);
-    response.cookies.set(cookieOptions);
+    // Set cookie with token from backend
+    if (data.token) {
+      response.cookies.set({
+        name: 'token',
+        value: data.token,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 30, // 30 days
+        path: '/',
+      });
+    }
 
     return response;
   } catch (error) {

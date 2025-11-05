@@ -1,67 +1,53 @@
 import { NextResponse } from 'next/server';
 
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:5000';
+
 export async function POST(request) {
   try {
     const body = await request.json();
-    console.log('Signup request body (DEMO MODE):', JSON.stringify(body, null, 2));
-    
-    const { 
-      email, 
-      password, 
-      fullName, 
-      mobileNumber, 
-      role,
-      selectedGoal,
-      subscriptionPackage,
-      // Additional fields from onboarding
-      personalSummary,
-      workExperience,
-      availability,
-      dateRange,
-      noticePreference,
-      // Personal details
-      dateOfBirth,
-      address,
-      showEmailOnProfile,
-      showMobileOnProfile,
-      profileImage,
-    } = body;
 
-    // DEMO MODE: No validation required
-
-    // DEMO MODE: Just simulate successful signup without database
-    console.log('=== DEMO SIGNUP SUCCESS ===');
-    console.log('User would be created with data:', {
-      email,
-      fullName,
-      role: role || 'employee',
-      selectedGoal,
-      subscriptionPackage,
-      personalSummary,
-      workExperience,
-      availability,
-      hasCompleteProfile: !!(personalSummary && workExperience && availability)
+    // Call Express backend
+    const backendResponse = await fetch(`${BACKEND_URL}/api/auth/signup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
     });
 
-    // Simulate a delay like a real API call
-    await new Promise(resolve => setTimeout(resolve, 500));
+    const data = await backendResponse.json();
 
-    // Return success response
-    return NextResponse.json(
+    if (!backendResponse.ok) {
+      return NextResponse.json(
+        { error: data.error || 'Signup failed' },
+        { status: backendResponse.status }
+      );
+    }
+
+    // Create response
+    const response = NextResponse.json(
       {
         success: true,
-        message: 'Account created successfully (Demo Mode)',
-        user: {
-          id: 'demo-user-' + Date.now(),
-          email,
-          fullName,
-          role: role || 'employee',
-          selectedGoal,
-          subscriptionPackage,
-        },
+        message: data.message || 'Account created successfully',
+        user: data.user,
       },
       { status: 201 }
     );
+
+    // Set cookie with token from backend
+    if (data.token) {
+      response.cookies.set({
+        name: 'token',
+        value: data.token,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 30, // 30 days
+        path: '/',
+      });
+    }
+
+    return response;
   } catch (error) {
     console.error('Signup error:', error);
     return NextResponse.json(

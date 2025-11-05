@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,8 @@ import { Bell, User, Menu } from 'lucide-react';
 export default function HomePage() {
   const { theme, getBackgroundStyle, getCardClassName, getTextClassName, getSubTextClassName, getInputClassName } = useTheme();
   const router = useRouter();
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('Search Jobs');
   const [searchQuery, setSearchQuery] = useState('');
   const [location, setLocation] = useState('');
@@ -27,6 +29,48 @@ export default function HomePage() {
   const [businessLocation, setBusinessLocation] = useState('');
   const [sortBy, setSortBy] = useState('Relevance');
   const [favoriteJobs, setFavoriteJobs] = useState(new Set([1, 2])); // Job IDs 1 and 2 are favorited by default
+  const [connectionSearchQuery, setConnectionSearchQuery] = useState('');
+  const [sortConnectionsBy, setSortConnectionsBy] = useState('Alphabetical');
+
+  // Fetch user data on mount
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const response = await fetch('/api/auth/me');
+        if (response.ok) {
+          const data = await response.json();
+          setUser(data.user);
+        } else {
+          router.push('/login/role-selection');
+        }
+      } catch (error) {
+        console.error('Error fetching user:', error);
+        router.push('/login/role-selection');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUser();
+  }, [router]);
+
+  // Handle sign out
+  const handleSignOut = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      router.push('/login/role-selection');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={getBackgroundStyle()}>
+        <div className={`text-lg ${getTextClassName()}`}>Loading...</div>
+      </div>
+    );
+  }
 
   const chatMessages = [
     {
@@ -93,8 +137,6 @@ export default function HomePage() {
       hasNewMessage: false
     }
   ];
-  const [connectionSearchQuery, setConnectionSearchQuery] = useState('');
-  const [sortConnectionsBy, setSortConnectionsBy] = useState('Alphabetical');
 
   const tabs = ['Search Jobs', 'Future Jobs', 'Networks', 'Corporate'];
 
@@ -412,10 +454,7 @@ export default function HomePage() {
                   <div className={`border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} my-2`}></div>
                   
                   <button 
-                    onClick={() => {
-                      // Handle sign out
-                      router.push('/login');
-                    }}
+                    onClick={handleSignOut}
                     className="w-full text-left p-4 rounded-lg hover:bg-gray-50 text-red-600"
                   >
                     Sign Out
@@ -1158,15 +1197,28 @@ export default function HomePage() {
                   </div>
                 ) : (
                   <>
-                    {/* Greeting */}
-                    <h2 className={`text-[18px] font-bold ${getTextClassName()} mb-6`}>
-                      Good Morning, Sal Monella
-                    </h2>
+                    {/* Greeting and Create Job Button */}
+                    <div className="flex items-center justify-between mb-6">
+                      <h2 className={`text-[18px] font-bold ${getTextClassName()}`}>
+                        Good Morning, {user?.fullName || 'User'}
+                      </h2>
+                      {user?.role === 'employer' && (
+                        <Button 
+                          onClick={() => {
+                            // TODO: Open create job modal or navigate to create job page
+                            alert('Create job functionality coming soon!');
+                          }}
+                          className="bg-[#00EA72] hover:bg-[#00D66C] text-black font-medium text-[13px] px-4 py-2 rounded-full"
+                        >
+                          + Create Job
+                        </Button>
+                      )}
+                    </div>
 
                     {/* Search Section */}
                     <div className="mb-6">
                   <h3 className={`text-[16px] font-semibold ${getTextClassName()} mb-4`}>
-                    Find jobs
+                    {user?.role === 'employer' ? 'Search Workers' : 'Find jobs'}
                   </h3>
                   
                   <div className="space-y-4">
@@ -1175,7 +1227,7 @@ export default function HomePage() {
                       <Input
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search for jobs i.e. Concrete Finisher"
+                        placeholder={user?.role === 'employer' ? 'Search for workers i.e. Concrete Finisher' : 'Search for jobs i.e. Concrete Finisher'}
                         className={`${getInputClassName()} border-2 border-[#00EA72] text-[14px] pl-10 pr-4`}
                       />
                       <svg className="absolute left-3 top-3 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
