@@ -1,0 +1,1008 @@
+/* Job Creation Styles */
+
+.container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
+  padding: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+.progressBar {
+  width: 100%;
+  max-width: 800px;
+  height: 4px;
+  background: #404040;
+  margin: 20px auto;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.progress {
+  height: 100%;
+  background: linear-gradient(90deg, #00ff00, #00cc00);
+  border-radius: 10px;
+  transition: width 0.3s ease;
+}
+
+.stepHeader {
+  text-align: center;
+  color: #fff;
+  margin: 30px 0;
+}
+
+.stepHeader h1 {
+  font-size: 2.5rem;
+  margin: 0 0 10px 0;
+  color: #fff;
+}
+
+.stepHeader p {
+  font-size: 1.1rem;
+  color: #aaa;
+  margin: 0;
+}
+
+.stepContainer {
+  max-width: 800px;
+  margin: 0 auto;
+  background: #2a2a2a;
+  border: 1px solid #404040;
+  border-radius: 12px;
+  padding: 40px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+/* Form Styles */
+.formGroup {
+  margin-bottom: 25px;
+}
+
+.formGroup label {
+  display: block;
+  color: #fff;
+  font-weight: 500;
+  margin-bottom: 8px;
+  font-size: 1rem;
+}
+
+.required {
+  color: #ff4444;
+}
+
+.formGroup small,
+.hint {
+  display: block;
+  color: #aaa;
+  font-size: 0.9rem;
+  margin-top: 5px;
+}
+
+.input,
+.select,
+.textarea {
+  width: 100%;
+  padding: 12px 16px;
+  background: #1a1a1a;
+  border: 1px solid #404040;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 1rem;
+  font-family: inherit;
+  transition: all 0.3s ease;
+}
+
+.input:focus,
+.select:focus,
+.textarea:focus {
+  outline: none;
+  border-color: #00ff00;
+  box-shadow: 0 0 0 3px rgba(0, 255, 0, 0.1);
+  background: #1a1a1a;
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 150px;
+}
+
+/* Radio Group Styles */
+.radioGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.radioLabel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #fff;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 6px;
+  transition: background 0.3s ease;
+}
+
+.radioLabel:hover {
+  background: #1a1a1a;
+}
+
+.radioLabel input[type="radio"],
+.radioLabel input[type="checkbox"] {
+  cursor: pointer;
+  accent-color: #00ff00;
+  width: 18px;
+  height: 18px;
+}
+
+.capitalizeFirst {
+  text-transform: capitalize;
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  color: #fff;
+  cursor: pointer;
+  padding: 12px;
+  border-radius: 6px;
+  background: #1a1a1a;
+  border: 1px solid #404040;
+  transition: all 0.3s ease;
+}
+
+.checkboxLabel:hover {
+  border-color: #00ff00;
+  background: #1a1a1a;
+}
+
+.checkboxLabel input[type="checkbox"] {
+  margin-top: 2px;
+  width: 20px;
+  height: 20px;
+  accent-color: #00ff00;
+  cursor: pointer;
+}
+
+.checkboxLabel span {
+  flex: 1;
+}
+
+.checkboxLabel strong {
+  display: block;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.checkboxLabel small {
+  display: block;
+  color: #aaa;
+  font-size: 0.85rem;
+}
+
+/* Fieldset Styles */
+.fieldset {
+  border: 1px solid #404040;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 25px;
+  background: #1a1a1a;
+}
+
+.fieldset legend {
+  color: #00ff00;
+  font-weight: 600;
+  font-size: 1.1rem;
+  padding: 0 10px;
+  margin-left: -10px;
+}
+
+/* Form Row */
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+/* Character Counter */
+.charCount {
+  text-align: right;
+  color: #aaa;
+  font-size: 0.9rem;
+  margin-top: 5px;
+}
+
+/* Qualifications List */
+.qualificationsList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.qualificationItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.qualificationIndex {
+  width: 30px;
+  height: 30px;
+  background: #00ff00;
+  color: #000;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.qualificationItem input {
+  flex: 1;
+}
+
+.removeButton {
+  width: 32px;
+  height: 32px;
+  background: #ff4444;
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 1.2rem;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.removeButton:hover {
+  background: #ff2222;
+}
+
+.addButton {
+  background: #00ff00;
+  color: #000;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: all 0.3s ease;
+}
+
+.addButton:hover {
+  background: #00cc00;
+}
+
+/* Tips Box */
+.tipsBox {
+  background: #1a3a1a;
+  border-left: 4px solid #00ff00;
+  padding: 15px;
+  border-radius: 6px;
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+.tipsBox h3 {
+  color: #00ff00;
+  margin: 0 0 10px 0;
+  font-size: 1rem;
+}
+
+.tipsBox ul {
+  color: #aaa;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.tipsBox li {
+  margin: 5px 0;
+  line-height: 1.5;
+}
+
+/* Job Preview */
+.jobPreview {
+  background: #1a3a1a;
+  border: 1px solid #00ff00;
+  padding: 12px 16px;
+  border-radius: 6px;
+  color: #aaa;
+  margin-bottom: 25px;
+  font-size: 0.95rem;
+}
+
+.jobPreview strong {
+  color: #00ff00;
+}
+
+/* Button Styles */
+.buttonGroup {
+  display: flex;
+  gap: 15px;
+  margin-top: 30px;
+  justify-content: space-between;
+}
+
+.primaryButton,
+.secondaryButton {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 180px;
+}
+
+.primaryButton {
+  background: #00ff00;
+  color: #000;
+}
+
+.primaryButton:hover:not(:disabled) {
+  background: #00cc00;
+  transform: translateY(-2px);
+}
+
+.primaryButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.secondaryButton {
+  background: #404040;
+  color: #fff;
+  text-decoration: none;
+  display: inline-block;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.secondaryButton:hover:not(:disabled) {
+  background: #505050;
+  transform: translateY(-2px);
+}
+
+.secondaryButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Error Message */
+.errorMessage {
+  background: #3a1a1a;
+  border: 1px solid #ff4444;
+  color: #ff8888;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+/* Step Indicator */
+.stepIndicator {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 40px;
+  flex-wrap: wrap;
+}
+
+.activeStep,
+.inactiveStep {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.activeStep {
+  background: #00ff00;
+  color: #000;
+}
+
+.inactiveStep {
+  background: #404040;
+  color: #aaa;
+}
+
+/* Card Layout (for Create Job start page) */
+.header {
+  text-align: center;
+  color: #fff;
+  margin: 40px 0;
+}
+
+.header h1 {
+  font-size: 2.5rem;
+  margin: 0 0 10px 0;
+}
+
+.header p {
+  font-size: 1.1rem;
+  color: #aaa;
+  margin: 0;
+}
+
+.content {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.card {
+  background: #2a2a2a;
+  border: 1px solid #404040;
+  border-radius: 12px;
+  padding: 40px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.icon {
+  font-size: 3rem;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.card h2 {
+  color: #fff;
+  text-align: center;
+  margin: 0 0 15px 0;
+}
+
+.card p {
+  color: #aaa;
+  text-align: center;
+  margin: 0 0 30px 0;
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin: 30px 0;
+}
+
+.step {
+  display: flex;
+  gap: 15px;
+  padding: 15px;
+  background: #1a1a1a;
+  border-radius: 8px;
+  border-left: 4px solid #00ff00;
+}
+
+.stepNumber {
+  width: 40px;
+  height: 40px;
+  background: #00ff00;
+  color: #000;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.stepInfo h3 {
+  color: #fff;
+  margin: 0 0 5px 0;
+  font-size: 1rem;
+}
+
+.stepInfo p {
+  color: #aaa;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+/* Success Container */
+.successContainer,
+.draftContainer,
+.errorContainer {
+  max-width: 900px;
+  margin: 0 auto;
+  background: #2a2a2a;
+  border: 1px solid #404040;
+  border-radius: 12px;
+  padding: 40px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.successIcon,
+.draftIcon,
+.errorIcon {
+  font-size: 4rem;
+  text-align: center;
+  margin-bottom: 20px;
+  display: block;
+}
+
+.successTitle,
+.draftTitle {
+  text-align: center;
+  color: #fff;
+  font-size: 2.2rem;
+  margin: 0 0 10px 0;
+}
+
+.successSubtitle,
+.draftSubtitle {
+  text-align: center;
+  color: #aaa;
+  font-size: 1.1rem;
+  margin: 0 0 30px 0;
+}
+
+/* Completion Status */
+.completionStatus {
+  margin: 30px 0;
+  padding: 20px;
+  background: #1a1a1a;
+  border-radius: 8px;
+}
+
+.completionBar {
+  width: 100%;
+  height: 8px;
+  background: #404040;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.completionFill {
+  height: 100%;
+  background: linear-gradient(90deg, #00ff00, #00cc00);
+  transition: width 0.3s ease;
+}
+
+.completionText {
+  text-align: center;
+  color: #aaa;
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+/* Job Summary Card */
+.jobSummaryCard {
+  background: #1a1a1a;
+  border: 1px solid #404040;
+  border-radius: 8px;
+  padding: 25px;
+  margin: 30px 0;
+}
+
+.jobHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  margin-bottom: 20px;
+  gap: 15px;
+}
+
+.jobHeader h2 {
+  color: #fff;
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.publishedBadge,
+.draftBadge {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.publishedBadge {
+  background: #1a3a1a;
+  color: #00ff00;
+  border: 1px solid #00ff00;
+}
+
+.draftBadge {
+  background: #3a3a1a;
+  color: #ffdd00;
+  border: 1px solid #ffdd00;
+}
+
+.jobDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-top: 1px solid #404040;
+  padding-top: 15px;
+}
+
+.detailRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.label {
+  color: #aaa;
+  font-weight: 500;
+}
+
+.value {
+  color: #00ff00;
+  font-weight: 600;
+}
+
+.jobStats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #404040;
+}
+
+.stat {
+  text-align: center;
+  padding: 10px;
+  background: #0a0a0a;
+  border-radius: 6px;
+}
+
+.statValue {
+  display: block;
+  color: #00ff00;
+  font-size: 1.8rem;
+  font-weight: bold;
+}
+
+.statLabel {
+  display: block;
+  color: #aaa;
+  font-size: 0.85rem;
+  margin-top: 5px;
+}
+
+/* Next Steps */
+.nextSteps,
+.whyPublish,
+.additionalOptions {
+  background: #1a1a1a;
+  border: 1px solid #404040;
+  border-radius: 8px;
+  padding: 25px;
+  margin: 30px 0;
+}
+
+.nextSteps h3,
+.whyPublish h3,
+.additionalOptions h3 {
+  color: #00ff00;
+  margin: 0 0 20px 0;
+  font-size: 1.2rem;
+}
+
+.stepsList {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.nextStep {
+  display: flex;
+  gap: 15px;
+}
+
+.stepNumber {
+  width: 40px;
+  height: 40px;
+  background: #00ff00;
+  color: #000;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.stepContent h4 {
+  color: #fff;
+  margin: 0 0 5px 0;
+  font-size: 1rem;
+}
+
+.stepContent p {
+  color: #aaa;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.whyPublish ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.whyPublish li {
+  color: #aaa;
+  padding-left: 25px;
+  position: relative;
+}
+
+.whyPublish li:before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: #00ff00;
+  font-weight: bold;
+}
+
+/* Checklist */
+.checklist {
+  background: #1a1a1a;
+  border: 1px solid #404040;
+  border-radius: 8px;
+  padding: 25px;
+  margin: 30px 0;
+}
+
+.checklist h3 {
+  color: #00ff00;
+  margin: 0 0 20px 0;
+  font-size: 1.2rem;
+}
+
+.checklistItems {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.checklistItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: #0a0a0a;
+  border-radius: 6px;
+  border-left: 3px solid #404040;
+  transition: all 0.3s ease;
+}
+
+.checklistItem.completed {
+  border-left-color: #00ff00;
+  background: #0a2a0a;
+}
+
+.checkIcon {
+  width: 24px;
+  height: 24px;
+  background: #404040;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #aaa;
+  font-weight: bold;
+  flex-shrink: 0;
+  font-size: 0.8rem;
+}
+
+.checklistItem.completed .checkIcon {
+  background: #00ff00;
+  color: #000;
+}
+
+.checklistItem span:nth-of-type(2) {
+  color: #fff;
+  font-weight: 500;
+  flex: 1;
+}
+
+.editLink {
+  color: #00ff00;
+  text-decoration: none;
+  font-size: 0.85rem;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: #1a1a1a;
+  transition: all 0.3s ease;
+}
+
+.editLink:hover {
+  background: #2a2a2a;
+  text-decoration: underline;
+}
+
+/* Options List */
+.optionsList {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.optionItem {
+  background: #0a0a0a;
+  padding: 15px;
+  border-radius: 6px;
+  border: 1px solid #404040;
+  transition: all 0.3s ease;
+}
+
+.optionItem:hover {
+  border-color: #00ff00;
+  background: #0a1a0a;
+}
+
+.optionItem h4 {
+  color: #00ff00;
+  margin: 0 0 8px 0;
+  font-size: 0.95rem;
+}
+
+.optionItem p {
+  color: #aaa;
+  margin: 0 0 10px 0;
+  font-size: 0.85rem;
+}
+
+.linkButton {
+  color: #00ff00;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+  display: inline-block;
+}
+
+.linkButton:hover {
+  text-decoration: underline;
+  transform: translateX(3px);
+}
+
+/* Info Box */
+.infoBox {
+  background: #1a3a1a;
+  border-left: 4px solid #00ff00;
+  padding: 20px;
+  border-radius: 6px;
+  margin: 30px 0;
+}
+
+.infoBox h4 {
+  color: #00ff00;
+  margin: 0 0 8px 0;
+  font-size: 1rem;
+}
+
+.infoBox p {
+  color: #aaa;
+  margin: 0;
+  line-height: 1.5;
+  font-size: 0.95rem;
+}
+
+/* Action Buttons */
+.successActions,
+.draftActions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 30px 0;
+}
+
+.outlineButton {
+  background: transparent;
+  color: #00ff00;
+  border: 2px solid #00ff00;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  display: inline-block;
+  text-align: center;
+}
+
+.outlineButton:hover {
+  background: #00ff00;
+  color: #000;
+}
+
+/* Tips Section */
+.tipsSection {
+  background: #1a3a1a;
+  border: 1px solid #00ff00;
+  border-radius: 8px;
+  padding: 25px;
+  margin: 30px 0;
+}
+
+.tipsSection h3 {
+  color: #00ff00;
+  margin: 0 0 15px 0;
+  font-size: 1.2rem;
+}
+
+.tipsSection ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tipsSection li {
+  color: #aaa;
+  padding-left: 20px;
+  position: relative;
+  font-size: 0.95rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .stepContainer,
+  .successContainer,
+  .draftContainer,
+  .errorContainer {
+    padding: 20px;
+  }
+
+  .stepHeader h1,
+  .successTitle,
+  .draftTitle {
+    font-size: 1.8rem;
+  }
+
+  .formRow {
+    grid-template-columns: 1fr;
+  }
+
+  .buttonGroup,
+  .successActions,
+  .draftActions {
+    flex-direction: column;
+  }
+
+  .primaryButton,
+  .secondaryButton,
+  .outlineButton {
+    width: 100%;
+    min-width: auto;
+  }
+
+  .stepIndicator {
+    gap: 10px;
+  }
+
+  .activeStep,
+  .inactiveStep {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+  }
+
+  .jobHeader {
+    flex-direction: column;
+  }
+
+  .jobStats {
+    grid-template-columns: 1fr;
+  }
+
+  .optionsList {
+    grid-template-columns: 1fr;
+  }
+}
