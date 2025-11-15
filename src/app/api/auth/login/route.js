@@ -38,6 +38,7 @@ export async function POST(request) {
       {
         success: true,
         user: data.user,
+        token: data.token, // Include token in response for localStorage
       },
       { status: 200 }
     );

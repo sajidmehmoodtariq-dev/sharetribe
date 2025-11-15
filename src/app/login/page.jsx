@@ -110,6 +110,11 @@ export default function LoginPage() {
         return;
       }
 
+      // Save token to localStorage
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+      }
+
       // Redirect to home page for all users
       router.push('/home');
     } catch (err) {

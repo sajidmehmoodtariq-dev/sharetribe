@@ -15,8 +15,11 @@ export default function HomePage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('Search Jobs');
+  const [activeTab, setActiveTab] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [myJobs, setMyJobs] = useState([]); // Employer's created jobs or Job seeker's applications
+  const [allJobs, setAllJobs] = useState([]); // All published jobs
+  const [jobsLoading, setJobsLoading] = useState(false);
   const [location, setLocation] = useState('');
   const [selectedIndustry, setSelectedIndustry] = useState('');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
@@ -51,10 +54,26 @@ export default function HomePage() {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const response = await fetch('/api/auth/me');
+        const token = localStorage.getItem('token');
+        if (!token) {
+          router.push('/login/role-selection');
+          return;
+        }
+
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         if (response.ok) {
           const data = await response.json();
           setUser(data.user);
+          
+          // Set initial tab based on role
+          if (data.user.role === 'employer') {
+            setActiveTab('My Jobs');
+          } else {
+            setActiveTab('Search Jobs');
+          }
+          
           // Initialize edit form with user data
           const dob = data.user?.personalDetails?.dateOfBirth;
           let formattedDob = '';
@@ -88,10 +107,69 @@ export default function HomePage() {
     fetchUser();
   }, [router]);
 
+  // Fetch jobs based on user role
+  useEffect(() => {
+    if (user) {
+      fetchMyJobs();
+      fetchAllJobs();
+    }
+  }, [user]);
+
+  const fetchMyJobs = async () => {
+    if (!user) return;
+    
+    try {
+      setJobsLoading(true);
+      const token = localStorage.getItem('token');
+      
+      let url;
+      if (user.role === 'employer') {
+        // Fetch jobs created by employer
+        url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/jobs/employer/${user._id}`;
+      } else {
+        // Fetch applications for job seeker
+        url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/applications/my-applications`;
+      }
+
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (user.role === 'employer') {
+          setMyJobs(data.jobs || []);
+        } else {
+          setMyJobs(data.applications || []);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching my jobs:', error);
+    } finally {
+      setJobsLoading(false);
+    }
+  };
+
+  const fetchAllJobs = async () => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/jobs/published/list`
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setAllJobs(data.jobs || []);
+      }
+    } catch (error) {
+      console.error('Error fetching all jobs:', error);
+    }
+  };
+
   // Handle sign out
   const handleSignOut = async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
+      localStorage.removeItem('token');
       router.push('/login/role-selection');
     } catch (error) {
       console.error('Error signing out:', error);
@@ -274,7 +352,10 @@ export default function HomePage() {
     }
   ];
 
-  const tabs = ['Search Jobs', 'Future Jobs', 'Networks', 'Corporate'];
+  // Conditional tabs based on user role
+  const tabs = user?.role === 'employer' 
+    ? ['My Jobs', 'All Jobs', 'Networks', 'Corporate']
+    : ['Search Jobs', 'My Applications', 'Networks', 'Corporate'];
 
   const networkConnections = [
     {
@@ -1493,90 +1574,178 @@ export default function HomePage() {
 
                 {/* Job Listing */}
                 <div className="space-y-4">
-                  {jobListings.map((job) => (
-                    <div key={job.id} className={`border rounded-3xl p-4 ${getCardClassName()} shadow-sm ${theme === 'dark' ? 'border-gray-700' : 'border-gray-300'}`}>
+                  {jobsLoading ? (
+                    <div className="flex justify-center items-center py-12">
+                      <div className="w-8 h-8 border-4 border-[#00EA72] border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                  ) : (
+                    (() => {
+                      // Determine which data source to use based on activeTab
+                      let displayJobs = [];
+                      
+                      if (user?.role === 'employer') {
+                        if (activeTab === 'My Jobs') {
+                          displayJobs = myJobs;
+                        } else if (activeTab === 'All Jobs') {
+                          displayJobs = allJobs;
+                        }
+                      } else if (user?.role === 'jobSeeker') {
+                        if (activeTab === 'My Applications') {
+                          displayJobs = myJobs; // These are applications
+                        } else if (activeTab === 'Search Jobs') {
+                          displayJobs = allJobs;
+                        }
+                      }
+
+                      // Show empty state if no jobs
+                      if (displayJobs.length === 0) {
+                        return (
+                          <div className={`text-center py-12 ${getCardClassName()} rounded-3xl border ${theme === 'dark' ? 'border-gray-700' : 'border-gray-300'}`}>
+                            <svg className={`w-16 h-16 mx-auto mb-4 ${getSubTextClassName()}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m8 0H8m8 0v2a2 2 0 01-2 2h-4a2 2 0 01-2-2V6m8 0a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2h8z" />
+                            </svg>
+                            <p className={`text-[14px] font-medium ${getTextClassName()} mb-2`}>
+                              {activeTab === 'My Jobs' ? 'No jobs posted yet' : 
+                               activeTab === 'My Applications' ? 'No applications yet' :
+                               'No jobs available'}
+                            </p>
+                            <p className={`text-[12px] ${getSubTextClassName()}`}>
+                              {activeTab === 'My Jobs' ? 'Create your first job posting to get started' : 
+                               activeTab === 'My Applications' ? 'Start applying to jobs to see them here' :
+                               'Check back later for new opportunities'}
+                            </p>
+                          </div>
+                        );
+                      }
+
+                      // Render jobs
+                      return displayJobs.map((job) => {
+                        // Handle application data structure (for My Applications tab)
+                        const isApplication = job.jobId && job.applicantId;
+                        const jobData = isApplication ? job.jobId : job;
+                        const jobId = jobData._id || jobData.id || job._id;
+                        
+                        return (
+                        <div key={jobId} className={`border rounded-3xl p-4 ${getCardClassName()} shadow-sm ${theme === 'dark' ? 'border-gray-700' : 'border-gray-300'}`}>
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-start space-x-3">
                           <div className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center shrink-0">
-                            <span className="text-[12px] font-bold text-white">K</span>
+                            <span className="text-[12px] font-bold text-white">
+                              {(jobData.businessName || jobData.company || 'Company').charAt(0).toUpperCase()}
+                            </span>
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h4 className={`font-semibold text-[14px] ${getTextClassName()} mb-1 truncate`}>{job.title}</h4>
-                            <p className={`text-[12px] ${getSubTextClassName()} mb-1 truncate`}>{job.company}</p>
+                            <h4 className={`font-semibold text-[14px] ${getTextClassName()} mb-1 truncate`}>
+                              {jobData.jobTitle || jobData.title}
+                            </h4>
+                            <p className={`text-[12px] ${getSubTextClassName()} mb-1 truncate`}>
+                              {jobData.businessName || jobData.company || 'Company Name'}
+                            </p>
+                            {isApplication && job.status && (
+                              <div className="mb-2">
+                                <span className={`px-2 py-1 text-[10px] rounded-full ${
+                                  job.status === 'accepted' ? 'bg-green-100 text-green-800' :
+                                  job.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                  job.status === 'interviewing' ? 'bg-blue-100 text-blue-800' :
+                                  job.status === 'shortlisted' ? 'bg-purple-100 text-purple-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {job.status.charAt(0).toUpperCase() + job.status.slice(1)}
+                                </span>
+                              </div>
+                            )}
                             <div className={`flex items-center space-x-3 text-[10px] ${getSubTextClassName()}`}>
                               <div className="flex items-center space-x-1">
                                 <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                                 </svg>
-                                <span className="truncate">{job.address}</span>
+                                <span className="truncate">{jobData.location || jobData.address || 'Remote'}</span>
                               </div>
-                              <div className="flex items-center space-x-1">
-                                <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                <span>{job.schedule}</span>
-                              </div>
-                              <div className="flex items-center space-x-1">
-                                <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0H8m8 0v2a2 2 0 002 2M8 6v2a2 2 0 002 2" />
-                                </svg>
-                                <span>{job.type}</span>
-                              </div>
+                              {jobData.workSchedule && (
+                                <div className="flex items-center space-x-1">
+                                  <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  <span>{jobData.workSchedule || jobData.schedule}</span>
+                                </div>
+                              )}
+                              {jobData.employmentType && (
+                                <div className="flex items-center space-x-1">
+                                  <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0H8m8 0v2a2 2 0 002 2M8 6v2a2 2 0 002 2" />
+                                  </svg>
+                                  <span>{jobData.employmentType || jobData.type}</span>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
                         <button 
-                          onClick={() => toggleFavorite(job.id)}
+                          onClick={() => toggleFavorite(jobId)}
                           className="p-1 shrink-0"
                         >
-                          <svg className={`w-5 h-5 ${favoriteJobs.has(job.id) ? 'text-red-500' : 'text-gray-400'}`} fill="currentColor" viewBox="0 0 24 24">
+                          <svg className={`w-5 h-5 ${favoriteJobs.has(jobId) ? 'text-red-500' : 'text-gray-400'}`} fill="currentColor" viewBox="0 0 24 24">
                             <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
                           </svg>
                         </button>
                       </div>
 
                       <p className={`text-[12px] ${getSubTextClassName()} mb-3 line-clamp-2`}>
-                        {job.description}
+                        {jobData.jobDescription || jobData.description || 'No description available'}
                       </p>
 
-                      <div className="mb-3">
-                        <p className={`text-[12px] font-medium ${getTextClassName()} mb-2`}>Skills Required</p>
-                        <div className="flex flex-wrap gap-1">
-                          {job.skillsRequired.map((skill) => (
-                            <span key={skill} className="px-2 py-1 bg-[#00EA72] text-white text-[10px] rounded-full">
-                              {skill}
-                            </span>
-                          ))}
+                      {(jobData.skillsRequired || jobData.essentialSkills)?.length > 0 && (
+                        <div className="mb-3">
+                          <p className={`text-[12px] font-medium ${getTextClassName()} mb-2`}>Skills Required</p>
+                          <div className="flex flex-wrap gap-1">
+                            {(jobData.skillsRequired || jobData.essentialSkills || []).map((skill, idx) => (
+                              <span key={`skill-${idx}`} className="px-2 py-1 bg-[#00EA72] text-white text-[10px] rounded-full">
+                                {skill}
+                              </span>
+                            ))}
+                          </div>
                         </div>
-                      </div>
+                      )}
 
-                      <div className="mb-3">
-                        <p className={`text-[12px] font-medium ${getTextClassName()} mb-2`}>Essential Licenses</p>
-                        <div className="flex flex-wrap gap-1">
-                          {job.essentialLicenses.map((license) => (
-                            <span key={license} className="px-2 py-1 bg-[#00EA72] text-white text-[10px] rounded-full">
-                              {license}
-                            </span>
-                          ))}
+                      {(jobData.essentialLicenses || jobData.licenses)?.length > 0 && (
+                        <div className="mb-3">
+                          <p className={`text-[12px] font-medium ${getTextClassName()} mb-2`}>Essential Licenses</p>
+                          <div className="flex flex-wrap gap-1">
+                            {(jobData.essentialLicenses || jobData.licenses || []).map((license, idx) => (
+                              <span key={`license-${idx}`} className="px-2 py-1 bg-[#00EA72] text-white text-[10px] rounded-full">
+                                {license}
+                              </span>
+                            ))}
+                          </div>
                         </div>
-                      </div>
+                      )}
 
                       <div className="flex items-center justify-between">
-                        <p className={`text-[10px] ${getSubTextClassName()}`}>Posted {job.postedTime}</p>
-                        {job.isLiveChat && (
-                          <button 
-                            onClick={handleLiveChat}
-                            className="flex items-center space-x-1 text-[#00EA72] text-[10px] font-medium"
-                          >
-                            <span>Live Chat</span>
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                            </svg>
-                          </button>
-                        )}
+                        <p className={`text-[10px] ${getSubTextClassName()}`}>
+                          {isApplication && job.createdAt 
+                            ? `Applied ${new Date(job.createdAt).toLocaleDateString()}`
+                            : jobData.createdAt
+                            ? `Posted ${new Date(jobData.createdAt).toLocaleDateString()}`
+                            : 'Recently posted'}
+                        </p>
+                        <div className="flex items-center space-x-2">
+                          {jobData.salary && (
+                            <span className={`text-[10px] font-medium ${getTextClassName()}`}>
+                              ${jobData.salary}
+                            </span>
+                          )}
+                          {activeTab === 'My Jobs' && user?.role === 'employer' && (
+                            <span className={`text-[10px] ${getSubTextClassName()}`}>
+                              {jobData.applicationsCount || 0} applications
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  ))}
+                        );
+                      });
+                    })()
+                  )}
                 </div>
                   </>
                 )}
