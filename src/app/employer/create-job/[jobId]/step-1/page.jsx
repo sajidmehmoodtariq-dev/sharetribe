@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import styles from '../page.module.css';
+import styles from '../../page.module.css';
 
 export default function Step1JobDetails() {
   const router = useRouter();

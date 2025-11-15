@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import styles from '../page.module.css';
 
 export default function JobSuccess() {
   const router = useRouter();
@@ -38,18 +37,28 @@ export default function JobSuccess() {
   }, [jobId]);
 
   if (loading) {
-    return <div className={styles.container}>Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-[#00EA72] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
   if (error) {
     return (
-      <div className={styles.container}>
-        <div className={styles.errorContainer}>
-          <div className={styles.errorIcon}>❌</div>
-          <h1>Error</h1>
-          <p>{error}</p>
-          <Link href="/employer/dashboard" className={styles.primaryButton}>
-            Back to Dashboard
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
+          <div className="text-6xl mb-4">❌</div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Error</h1>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">{error}</p>
+          <Link 
+            href="/home" 
+            className="inline-block bg-[#00EA72] hover:bg-[#00D66C] text-black font-medium px-6 py-3 rounded-full transition-colors"
+          >
+            Back to Home
           </Link>
         </div>
       </div>
@@ -57,126 +66,175 @@ export default function JobSuccess() {
   }
 
   return (
-    <div className={styles.container}>
-      <div className={styles.successContainer}>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4">
+      <div className="max-w-4xl mx-auto">
         {/* Success Icon */}
-        <div className={styles.successIcon}>✓</div>
+        <div className="w-24 h-24 bg-[#00EA72] rounded-full flex items-center justify-center mx-auto mb-6">
+          <span className="text-5xl text-white font-bold">✓</span>
+        </div>
 
         {/* Main Message */}
-        <h1 className={styles.successTitle}>Job Published Successfully!</h1>
-        <p className={styles.successSubtitle}>
+        <h1 className="text-3xl md:text-4xl font-bold text-center text-gray-900 dark:text-white mb-4">
+          Job Published Successfully!
+        </h1>
+        <p className="text-lg text-center text-gray-600 dark:text-gray-400 mb-8">
           Your job posting is now live and visible to job seekers
         </p>
 
         {/* Job Preview Card */}
-        <div className={styles.jobSummaryCard}>
-          <div className={styles.jobHeader}>
-            <h2>{job?.jobDetails?.jobTitle}</h2>
-            <span className={styles.publishedBadge}>🟢 Published</span>
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 mb-8">
+          <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">{job?.jobDetails?.jobTitle}</h2>
+            <span className="px-3 py-1 bg-green-100 text-green-800 text-sm font-medium rounded-full">
+              🟢 Published
+            </span>
           </div>
 
-          <div className={styles.jobDetails}>
-            <div className={styles.detailRow}>
-              <span className={styles.label}>Employment Type:</span>
-              <span className={styles.value}>{job?.jobDetails?.employmentType}</span>
+          <div className="space-y-3 mb-6">
+            <div className="flex justify-between items-center">
+              <span className="text-gray-600 dark:text-gray-400 font-medium">Employment Type:</span>
+              <span className="text-gray-900 dark:text-white">{job?.jobDetails?.employmentType}</span>
             </div>
-            <div className={styles.detailRow}>
-              <span className={styles.label}>Shift Preference:</span>
-              <span className={styles.value}>{job?.jobDetails?.shiftPreference}</span>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-600 dark:text-gray-400 font-medium">Shift Preference:</span>
+              <span className="text-gray-900 dark:text-white">{job?.jobDetails?.shiftPreference}</span>
             </div>
-            <div className={styles.detailRow}>
-              <span className={styles.label}>Min. Experience:</span>
-              <span className={styles.value}>{job?.jobDetails?.minimumExperience}</span>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-600 dark:text-gray-400 font-medium">Min. Experience:</span>
+              <span className="text-gray-900 dark:text-white">{job?.jobDetails?.minimumExperience}</span>
             </div>
-            <div className={styles.detailRow}>
-              <span className={styles.label}>Location:</span>
-              <span className={styles.value}>{job?.postJob?.workLocation}</span>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-600 dark:text-gray-400 font-medium">Location:</span>
+              <span className="text-gray-900 dark:text-white">{job?.postJob?.workLocation}</span>
             </div>
             {job?.postJob?.salary && (
-              <div className={styles.detailRow}>
-                <span className={styles.label}>Salary:</span>
-                <span className={styles.value}>{job?.postJob?.salary}</span>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600 dark:text-gray-400 font-medium">Salary:</span>
+                <span className="text-gray-900 dark:text-white">{job?.postJob?.salary}</span>
               </div>
             )}
           </div>
 
-          <div className={styles.jobStats}>
-            <div className={styles.stat}>
-              <span className={styles.statValue}>0</span>
-              <span className={styles.statLabel}>Applications</span>
+          <div className="grid grid-cols-3 gap-4 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-[#00EA72]">0</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Applications</div>
             </div>
-            <div className={styles.stat}>
-              <span className={styles.statValue}>0</span>
-              <span className={styles.statLabel}>Views</span>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-[#00EA72]">0</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Views</div>
             </div>
-            <div className={styles.stat}>
-              <span className={styles.statValue}>📋</span>
-              <span className={styles.statLabel}>Job ID: {jobId?.slice(0, 8)}</span>
+            <div className="text-center">
+              <div className="text-2xl">📋</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">ID: {jobId?.slice(0, 8)}</div>
             </div>
           </div>
         </div>
 
         {/* Action Steps */}
-        <div className={styles.nextSteps}>
-          <h3>📋 What's Next?</h3>
-          <div className={styles.stepsList}>
-            <div className={styles.nextStep}>
-              <span className={styles.stepNumber}>1</span>
-              <div className={styles.stepContent}>
-                <h4>Share Your Job</h4>
-                <p>Share the job listing on your social media or company website to reach more candidates</p>
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 mb-8">
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">📋 What's Next?</h3>
+          <div className="space-y-4">
+            <div className="flex gap-4">
+              <span className="flex-shrink-0 w-8 h-8 bg-[#00EA72] text-white rounded-full flex items-center justify-center font-bold">
+                1
+              </span>
+              <div>
+                <h4 className="font-semibold text-gray-900 dark:text-white mb-1">Share Your Job</h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Share the job listing on your social media or company website to reach more candidates
+                </p>
               </div>
             </div>
 
-            <div className={styles.nextStep}>
-              <span className={styles.stepNumber}>2</span>
-              <div className={styles.stepContent}>
-                <h4>Review Applications</h4>
-                <p>Check your dashboard regularly for new applications from interested job seekers</p>
+            <div className="flex gap-4">
+              <span className="flex-shrink-0 w-8 h-8 bg-[#00EA72] text-white rounded-full flex items-center justify-center font-bold">
+                2
+              </span>
+              <div>
+                <h4 className="font-semibold text-gray-900 dark:text-white mb-1">Review Applications</h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Check your dashboard regularly for new applications from interested job seekers
+                </p>
               </div>
             </div>
 
-            <div className={styles.nextStep}>
-              <span className={styles.stepNumber}>3</span>
-              <div className={styles.stepContent}>
-                <h4>Shortlist Candidates</h4>
-                <p>Save and review promising candidates, then reach out to schedule interviews</p>
+            <div className="flex gap-4">
+              <span className="flex-shrink-0 w-8 h-8 bg-[#00EA72] text-white rounded-full flex items-center justify-center font-bold">
+                3
+              </span>
+              <div>
+                <h4 className="font-semibold text-gray-900 dark:text-white mb-1">Shortlist Candidates</h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Save and review promising candidates, then reach out to schedule interviews
+                </p>
               </div>
             </div>
 
-            <div className={styles.nextStep}>
-              <span className={styles.stepNumber}>4</span>
-              <div className={styles.stepContent}>
-                <h4>Make a Hire</h4>
-                <p>Find the perfect fit for your team and mark the position as filled</p>
+            <div className="flex gap-4">
+              <span className="flex-shrink-0 w-8 h-8 bg-[#00EA72] text-white rounded-full flex items-center justify-center font-bold">
+                4
+              </span>
+              <div>
+                <h4 className="font-semibold text-gray-900 dark:text-white mb-1">Make a Hire</h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Find the perfect fit for your team and mark the position as filled
+                </p>
               </div>
             </div>
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div className={styles.successActions}>
-          <Link href="/employer/dashboard" className={styles.primaryButton}>
-            🏠 Go to Dashboard
+        <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
+          <Link 
+            href="/home" 
+            className="bg-[#00EA72] hover:bg-[#00D66C] text-black font-medium px-6 py-3 rounded-full text-center transition-colors"
+          >
+            🏠 Go to Home
           </Link>
-          <Link href={`/employer/job/${jobId}`} className={styles.secondaryButton}>
+          <Link 
+            href={`/employer/job/${jobId}`} 
+            className="bg-blue-500 hover:bg-blue-600 text-white font-medium px-6 py-3 rounded-full text-center transition-colors"
+          >
             👁️ View Job Posting
           </Link>
-          <Link href="/employer/create-job" className={styles.outlineButton}>
+          <Link 
+            href="/employer/create-job" 
+            className="border-2 border-gray-300 dark:border-gray-600 hover:border-[#00EA72] text-gray-900 dark:text-white font-medium px-6 py-3 rounded-full text-center transition-colors"
+          >
             ➕ Create Another Job
           </Link>
         </div>
 
         {/* Tips Section */}
-        <div className={styles.tipsSection}>
-          <h3>💡 Tips to Attract Better Candidates</h3>
-          <ul>
-            <li>📝 Make sure your job description is clear and comprehensive</li>
-            <li>💰 Provide a competitive salary range to attract qualified candidates</li>
-            <li>🎯 Be specific about required qualifications and skills</li>
-            <li>📍 Clearly mention the work location and flexibility options</li>
-            <li>⚡ Respond quickly to applications to show you're actively hiring</li>
-            <li>🌟 Highlight unique benefits and company culture</li>
+        <div className="bg-gradient-to-br from-green-50 to-blue-50 dark:from-gray-800 dark:to-gray-700 rounded-2xl p-6">
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">💡 Tips to Attract Better Candidates</h3>
+          <ul className="space-y-2 text-gray-700 dark:text-gray-300">
+            <li className="flex items-start gap-2">
+              <span className="text-lg">📝</span>
+              <span>Make sure your job description is clear and comprehensive</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-lg">💰</span>
+              <span>Provide a competitive salary range to attract qualified candidates</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-lg">🎯</span>
+              <span>Be specific about required qualifications and skills</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-lg">📍</span>
+              <span>Clearly mention the work location and flexibility options</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-lg">⚡</span>
+              <span>Respond quickly to applications to show you're actively hiring</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-lg">🌟</span>
+              <span>Highlight unique benefits and company culture</span>
+            </li>
           </ul>
         </div>
       </div>

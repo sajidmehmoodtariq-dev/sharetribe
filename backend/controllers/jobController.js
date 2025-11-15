@@ -374,11 +374,19 @@ exports.updateJobStatus = async (req, res) => {
 exports.deleteJob = async (req, res) => {
   try {
     const { jobId } = req.params;
+    const userId = req.user._id;
 
-    const job = await Job.findByIdAndDelete(jobId);
+    const job = await Job.findById(jobId);
     if (!job) {
       return res.status(404).json({ error: 'Job not found' });
     }
+
+    // Check if the user is the employer who created this job
+    if (job.employerId.toString() !== userId.toString()) {
+      return res.status(403).json({ error: 'You are not authorized to delete this job' });
+    }
+
+    await Job.findByIdAndDelete(jobId);
 
     res.status(200).json({
       success: true,

@@ -490,6 +490,34 @@ export default function HomePage() {
     // You can add live chat implementation here
   };
 
+  const handleDeleteJob = async (jobId) => {
+    if (!confirm('Are you sure you want to delete this job? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/jobs/${jobId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to delete job');
+      }
+
+      // Refresh the jobs list
+      await fetchMyJobs();
+      alert('Job deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting job:', error);
+      alert(error.message || 'Failed to delete job. Please try again.');
+    }
+  };
+
   return (
     <div className="min-h-screen" style={getBackgroundStyle()}>
       <div className="w-full max-w-none mx-auto min-h-screen flex flex-col">
@@ -1447,8 +1475,7 @@ export default function HomePage() {
                       {user?.role === 'employer' && (
                         <Button 
                           onClick={() => {
-                            // TODO: Open create job modal or navigate to create job page
-                            alert('Create job functionality coming soon!');
+                            router.push('/employer/create-job');
                           }}
                           className="bg-[#00EA72] hover:bg-[#00D66C] text-black font-medium text-[13px] px-4 py-2 rounded-full"
                         >
@@ -1641,6 +1668,7 @@ export default function HomePage() {
                             <p className={`text-[12px] ${getSubTextClassName()} mb-1 truncate`}>
                               {jobData.businessName || jobData.company || 'Company Name'}
                             </p>
+                            {/* Show application status for job seekers */}
                             {isApplication && job.status && (
                               <div className="mb-2">
                                 <span className={`px-2 py-1 text-[10px] rounded-full ${
@@ -1651,6 +1679,20 @@ export default function HomePage() {
                                   'bg-gray-100 text-gray-800'
                                 }`}>
                                   {job.status.charAt(0).toUpperCase() + job.status.slice(1)}
+                                </span>
+                              </div>
+                            )}
+                            {/* Show job status for employers */}
+                            {activeTab === 'My Jobs' && user?.role === 'employer' && !isApplication && jobData.status && (
+                              <div className="mb-2">
+                                <span className={`px-2 py-1 text-[10px] rounded-full ${
+                                  jobData.status === 'published' || jobData.status === 'active' ? 'bg-green-100 text-green-800' :
+                                  jobData.status === 'draft' ? 'bg-yellow-100 text-yellow-800' :
+                                  jobData.status === 'closed' ? 'bg-red-100 text-red-800' :
+                                  jobData.status === 'archived' ? 'bg-gray-100 text-gray-800' :
+                                  'bg-blue-100 text-blue-800'
+                                }`}>
+                                  {jobData.status.charAt(0).toUpperCase() + jobData.status.slice(1)}
                                 </span>
                               </div>
                             )}
@@ -1680,14 +1722,39 @@ export default function HomePage() {
                             </div>
                           </div>
                         </div>
-                        <button 
-                          onClick={() => toggleFavorite(jobId)}
-                          className="p-1 shrink-0"
-                        >
-                          <svg className={`w-5 h-5 ${favoriteJobs.has(jobId) ? 'text-red-500' : 'text-gray-400'}`} fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-                          </svg>
-                        </button>
+                        <div className="flex items-center space-x-2 shrink-0">
+                          {activeTab === 'My Jobs' && user?.role === 'employer' && !isApplication ? (
+                            <>
+                              <button 
+                                onClick={() => router.push(`/employer/create-job/${jobId}/step-1`)}
+                                className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+                                title="Edit Job"
+                              >
+                                <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteJob(jobId)}
+                                className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+                                title="Delete Job"
+                              >
+                                <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </>
+                          ) : (
+                            <button 
+                              onClick={() => toggleFavorite(jobId)}
+                              className="p-1"
+                            >
+                              <svg className={`w-5 h-5 ${favoriteJobs.has(jobId) ? 'text-red-500' : 'text-gray-400'}`} fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                              </svg>
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       <p className={`text-[12px] ${getSubTextClassName()} mb-3 line-clamp-2`}>
@@ -1720,7 +1787,7 @@ export default function HomePage() {
                         </div>
                       )}
 
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between mb-3">
                         <p className={`text-[10px] ${getSubTextClassName()}`}>
                           {isApplication && job.createdAt 
                             ? `Applied ${new Date(job.createdAt).toLocaleDateString()}`
@@ -1741,6 +1808,14 @@ export default function HomePage() {
                           )}
                         </div>
                       </div>
+
+                      {/* View Details Button */}
+                      <button
+                        onClick={() => router.push(`/job/${jobId}`)}
+                        className="w-full bg-[#00EA72] hover:bg-[#00D66C] text-black font-medium text-[13px] py-2 rounded-full transition-colors"
+                      >
+                        View Details
+                      </button>
                     </div>
                         );
                       });
