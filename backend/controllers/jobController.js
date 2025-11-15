@@ -286,9 +286,9 @@ exports.getEmployerJobs = async (req, res) => {
 // Get all published jobs (for job seekers)
 exports.getAllPublishedJobs = async (req, res) => {
   try {
-    const { page = 1, limit = 10, employmentType, shiftPreference, workLocation, search } = req.query;
+    const { page = 1, limit = 100, employmentType, shiftPreference, workLocation, search } = req.query;
 
-    let query = { status: 'published', isActive: true };
+    let query = { status: 'published' };
 
     if (employmentType) {
       query['jobDetails.employmentType'] = employmentType;

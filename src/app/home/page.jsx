@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useTheme } from '@/components/ThemeProvider';
 import Image from 'next/image';
-import { Bell, User, Menu, Calendar } from 'lucide-react';
+import { Bell, User, Menu, Calendar, MessageCircle } from 'lucide-react';
 
 export default function HomePage() {
   const { theme, getBackgroundStyle, getCardClassName, getTextClassName, getSubTextClassName, getInputClassName } = useTheme();
@@ -180,13 +180,19 @@ export default function HomePage() {
 
   const fetchAllJobs = async () => {
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/jobs/published/list`
-      );
+      const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/jobs/published/list`;
+      console.log('Fetching all jobs from:', url);
+      
+      const response = await fetch(url);
+      console.log('Response status:', response.status, response.ok);
 
       if (response.ok) {
         const data = await response.json();
+        console.log('Received jobs data:', data);
+        console.log('Number of jobs:', data.jobs?.length);
         setAllJobs(data.jobs || []);
+      } else {
+        console.error('Failed to fetch jobs:', response.status, response.statusText);
       }
     } catch (error) {
       console.error('Error fetching all jobs:', error);
@@ -616,6 +622,14 @@ export default function HomePage() {
           
           {/* Icons */}
           <div className="flex items-center gap-2">
+            {/* Messages Icon */}
+            <button 
+              className="p-2 relative" 
+              onClick={() => router.push('/chats')}
+              title="Messages"
+            >
+              <MessageCircle className={`w-6 h-6 ${getTextClassName()}`} />
+            </button>
             {/* Bell Icon */}
             <button className="p-2" onClick={() => {
               setShowLiveChat(true);
@@ -1687,30 +1701,76 @@ export default function HomePage() {
                           displayJobs = myJobs; // These are applications
                         } else if (activeTab === 'Search Jobs') {
                           displayJobs = allJobs;
+                          console.log('Search Jobs tab - allJobs:', allJobs.length, 'jobs');
                         } else if (activeTab === 'Saved Jobs') {
                           displayJobs = savedJobs;
                         }
                       }
 
+                      console.log('Before filters - displayJobs:', displayJobs.length);
+                      console.log('Filters:', { searchQuery, location, selectedIndustry });
+
+                      // Apply search filters
+                      if (searchQuery || location || selectedIndustry) {
+                        displayJobs = displayJobs.filter(job => {
+                          const jobData = job.jobId || job; // Handle application structure
+                          const jobTitle = (jobData.jobDetails?.jobTitle || jobData.jobTitle || '').toLowerCase();
+                          const businessName = (jobData.jobDetails?.businessName || jobData.businessName || '').toLowerCase();
+                          const jobDescription = (jobData.jobSummary?.summary || jobData.jobDetails?.jobDescription || jobData.description || '').toLowerCase();
+                          const jobLocation = (jobData.postJob?.workLocation || jobData.location || '').toLowerCase();
+                          const industry = (jobData.jobDetails?.industry || jobData.industry || '').toLowerCase();
+                          
+                          const searchLower = searchQuery.toLowerCase();
+                          const locationLower = location.toLowerCase();
+                          const industryLower = selectedIndustry.toLowerCase();
+                          
+                          const matchesSearch = !searchQuery || 
+                            jobTitle.includes(searchLower) || 
+                            businessName.includes(searchLower) || 
+                            jobDescription.includes(searchLower);
+                          
+                          const matchesLocation = !location || jobLocation.includes(locationLower);
+                          const matchesIndustry = !selectedIndustry || industry.includes(industryLower);
+                          
+                          return matchesSearch && matchesLocation && matchesIndustry;
+                        });
+                        console.log('After filters - displayJobs:', displayJobs.length);
+                      }
+
                       // Show empty state if no jobs
                       if (displayJobs.length === 0) {
+                        const hasFilters = searchQuery || location || selectedIndustry;
                         return (
                           <div className={`text-center py-12 ${getCardClassName()} rounded-3xl border ${theme === 'dark' ? 'border-gray-700' : 'border-gray-300'}`}>
                             <svg className={`w-16 h-16 mx-auto mb-4 ${getSubTextClassName()}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m8 0H8m8 0v2a2 2 0 01-2 2h-4a2 2 0 01-2-2V6m8 0a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2h8z" />
                             </svg>
                             <p className={`text-[14px] font-medium ${getTextClassName()} mb-2`}>
-                              {activeTab === 'My Jobs' ? 'No jobs posted yet' : 
+                              {hasFilters ? 'No jobs match your filters' :
+                               activeTab === 'My Jobs' ? 'No jobs posted yet' : 
                                activeTab === 'My Applications' ? 'No applications yet' :
                                activeTab === 'Saved Jobs' ? 'No saved jobs yet' :
                                'No jobs available'}
                             </p>
                             <p className={`text-[12px] ${getSubTextClassName()}`}>
-                              {activeTab === 'My Jobs' ? 'Create your first job posting to get started' : 
+                              {hasFilters ? 'Try adjusting your search criteria or clearing filters' :
+                               activeTab === 'My Jobs' ? 'Create your first job posting to get started' : 
                                activeTab === 'My Applications' ? 'Start applying to jobs to see them here' :
                                activeTab === 'Saved Jobs' ? 'Save jobs you\'re interested in to view them here' :
                                'Check back later for new opportunities'}
                             </p>
+                            {hasFilters && (
+                              <button
+                                onClick={() => {
+                                  setSearchQuery('');
+                                  setLocation('');
+                                  setSelectedIndustry('');
+                                }}
+                                className="mt-4 px-4 py-2 bg-[#00EA72] hover:bg-[#00D66C] text-black font-medium rounded-full transition-colors"
+                              >
+                                Clear Filters
+                              </button>
+                            )}
                           </div>
                         );
                       }
@@ -1795,6 +1855,15 @@ export default function HomePage() {
                         <div className="flex items-center space-x-2 shrink-0">
                           {activeTab === 'My Jobs' && user?.role === 'employer' && !isApplication ? (
                             <>
+                              <button 
+                                onClick={() => router.push(`/chats?jobId=${jobId}`)}
+                                className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+                                title="View Messages"
+                              >
+                                <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                </svg>
+                              </button>
                               <button 
                                 onClick={() => router.push(`/employer/create-job/${jobId}/step-1`)}
                                 className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
