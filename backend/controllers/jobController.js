@@ -453,3 +453,27 @@ exports.unsaveJob = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// Get saved jobs (by job seeker)
+exports.getSavedJobs = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    // Find all jobs that have this user in their savedByUsers array
+    const savedJobs = await Job.find({
+      savedByUsers: userId,
+      status: 'published' // Only return published jobs
+    }).sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      savedJobs: savedJobs
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};

@@ -39,4 +39,7 @@ router.post('/:jobId/save', protect, jobController.saveJob);
 // Unsave job (for job seekers)
 router.post('/:jobId/unsave', protect, jobController.unsaveJob);
 
+// Get saved jobs (for job seekers)
+router.get('/saved/:userId', protect, jobController.getSavedJobs);
+
 module.exports = router;

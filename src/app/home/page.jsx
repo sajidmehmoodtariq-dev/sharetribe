@@ -19,6 +19,7 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [myJobs, setMyJobs] = useState([]); // Employer's created jobs or Job seeker's applications
   const [allJobs, setAllJobs] = useState([]); // All published jobs
+  const [savedJobs, setSavedJobs] = useState([]); // Job seeker's saved/favorited jobs
   const [jobsLoading, setJobsLoading] = useState(false);
   const [location, setLocation] = useState('');
   const [selectedIndustry, setSelectedIndustry] = useState('');
@@ -112,8 +113,35 @@ export default function HomePage() {
     if (user) {
       fetchMyJobs();
       fetchAllJobs();
+      if (user.role === 'jobSeeker') {
+        fetchSavedJobs();
+      }
     }
   }, [user]);
+
+  const fetchSavedJobs = async () => {
+    if (!user || user.role !== 'jobSeeker') return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/jobs/saved/${user._id}`,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        const jobs = data.savedJobs || [];
+        setSavedJobs(jobs);
+        const savedJobIds = jobs.map(job => job._id);
+        setFavoriteJobs(new Set(savedJobIds));
+      }
+    } catch (error) {
+      console.error('Error fetching saved jobs:', error);
+    }
+  };
 
   const fetchMyJobs = async () => {
     if (!user) return;
@@ -355,7 +383,7 @@ export default function HomePage() {
   // Conditional tabs based on user role
   const tabs = user?.role === 'employer' 
     ? ['My Jobs', 'All Jobs', 'Networks', 'Corporate']
-    : ['Search Jobs', 'My Applications', 'Networks', 'Corporate'];
+    : ['Search Jobs', 'My Applications', 'Saved Jobs', 'Networks', 'Corporate'];
 
   const networkConnections = [
     {
@@ -472,16 +500,54 @@ export default function HomePage() {
     console.log('Searching for:', searchQuery, 'in', location);
   };
 
-  const toggleFavorite = (jobId) => {
-    setFavoriteJobs(prev => {
-      const newFavorites = new Set(prev);
-      if (newFavorites.has(jobId)) {
-        newFavorites.delete(jobId);
-      } else {
-        newFavorites.add(jobId);
+  const toggleFavorite = async (jobId) => {
+    if (!user) {
+      alert('Please login to save jobs');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const isFavorited = favoriteJobs.has(jobId);
+      
+      // Call API to save/unsave job
+      const endpoint = isFavorited ? 'unsave' : 'save';
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/jobs/${jobId}/${endpoint}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({ userId: user._id }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update saved job');
       }
-      return newFavorites;
-    });
+
+      // Update local state
+      setFavoriteJobs(prev => {
+        const newFavorites = new Set(prev);
+        if (isFavorited) {
+          newFavorites.delete(jobId);
+        } else {
+          newFavorites.add(jobId);
+        }
+        return newFavorites;
+      });
+
+      // Refresh saved jobs list if on Saved Jobs tab
+      if (activeTab === 'Saved Jobs') {
+        fetchSavedJobs();
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      alert(error.message || 'Failed to save job. Please try again.');
+    }
   };
 
   const handleLiveChat = () => {
@@ -1621,6 +1687,8 @@ export default function HomePage() {
                           displayJobs = myJobs; // These are applications
                         } else if (activeTab === 'Search Jobs') {
                           displayJobs = allJobs;
+                        } else if (activeTab === 'Saved Jobs') {
+                          displayJobs = savedJobs;
                         }
                       }
 
@@ -1634,11 +1702,13 @@ export default function HomePage() {
                             <p className={`text-[14px] font-medium ${getTextClassName()} mb-2`}>
                               {activeTab === 'My Jobs' ? 'No jobs posted yet' : 
                                activeTab === 'My Applications' ? 'No applications yet' :
+                               activeTab === 'Saved Jobs' ? 'No saved jobs yet' :
                                'No jobs available'}
                             </p>
                             <p className={`text-[12px] ${getSubTextClassName()}`}>
                               {activeTab === 'My Jobs' ? 'Create your first job posting to get started' : 
                                activeTab === 'My Applications' ? 'Start applying to jobs to see them here' :
+                               activeTab === 'Saved Jobs' ? 'Save jobs you\'re interested in to view them here' :
                                'Check back later for new opportunities'}
                             </p>
                           </div>
@@ -1744,16 +1814,17 @@ export default function HomePage() {
                                 </svg>
                               </button>
                             </>
-                          ) : (
+                          ) : user?.role === 'jobSeeker' ? (
                             <button 
                               onClick={() => toggleFavorite(jobId)}
                               className="p-1"
+                              title="Save Job"
                             >
                               <svg className={`w-5 h-5 ${favoriteJobs.has(jobId) ? 'text-red-500' : 'text-gray-400'}`} fill="currentColor" viewBox="0 0 24 24">
                                 <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
                               </svg>
                             </button>
-                          )}
+                          ) : null}
                         </div>
                       </div>
 
