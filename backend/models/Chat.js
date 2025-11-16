@@ -8,7 +8,7 @@ const messageSchema = new mongoose.Schema({
   },
   senderRole: {
     type: String,
-    enum: ['employer', 'jobSeeker'],
+    enum: ['employer', 'jobSeeker', 'employee'],
     required: true
   },
   message: {
@@ -53,6 +53,14 @@ const chatSchema = new mongoose.Schema({
   unreadCount: {
     employer: { type: Number, default: 0 },
     jobSeeker: { type: Number, default: 0 }
+  },
+  acceptedByEmployer: {
+    type: Boolean,
+    default: false
+  },
+  acceptedAt: {
+    type: Date,
+    default: null
   }
 }, {
   timestamps: true

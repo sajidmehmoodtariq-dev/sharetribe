@@ -35,8 +35,8 @@ exports.getOrCreateChat = async (req, res) => {
       employerId,
       jobSeekerId
     }).populate('jobId', 'jobDetails.jobTitle jobDetails.businessName')
-      .populate('employerId', 'name email')
-      .populate('jobSeekerId', 'name email');
+      .populate('employerId', 'fullName email')
+      .populate('jobSeekerId', 'fullName email');
 
     if (!chat) {
       chat = await Chat.create({
@@ -48,8 +48,8 @@ exports.getOrCreateChat = async (req, res) => {
 
       chat = await Chat.findById(chat._id)
         .populate('jobId', 'jobDetails.jobTitle jobDetails.businessName')
-        .populate('employerId', 'name email')
-        .populate('jobSeekerId', 'name email');
+        .populate('employerId', 'fullName email')
+        .populate('jobSeekerId', 'fullName email');
     }
 
     res.json({ chat });
@@ -74,8 +74,8 @@ exports.getUserChats = async (req, res) => {
 
     const chats = await Chat.find(query)
       .populate('jobId', 'jobDetails.jobTitle jobDetails.businessName status')
-      .populate('employerId', 'name email')
-      .populate('jobSeekerId', 'name email')
+      .populate('employerId', 'fullName email')
+      .populate('jobSeekerId', 'fullName email')
       .sort({ lastMessageTime: -1 });
 
     res.json({ chats });
@@ -102,7 +102,7 @@ exports.getJobChats = async (req, res) => {
     }
 
     const chats = await Chat.find({ jobId, employerId: userId })
-      .populate('jobSeekerId', 'name email')
+      .populate('jobSeekerId', 'fullName email')
       .populate('jobId', 'jobDetails.jobTitle')
       .sort({ lastMessageTime: -1 });
 
@@ -151,7 +151,7 @@ exports.sendMessage = async (req, res) => {
     // Update unread count for recipient
     if (userRole === 'employer') {
       chat.unreadCount.jobSeeker += 1;
-    } else {
+    } else if (userRole === 'jobSeeker' || userRole === 'employee') {
       chat.unreadCount.employer += 1;
     }
 
@@ -160,8 +160,8 @@ exports.sendMessage = async (req, res) => {
     // Populate and return updated chat
     const updatedChat = await Chat.findById(chatId)
       .populate('jobId', 'jobDetails.jobTitle jobDetails.businessName')
-      .populate('employerId', 'name email')
-      .populate('jobSeekerId', 'name email');
+      .populate('employerId', 'fullName email')
+      .populate('jobSeekerId', 'fullName email');
 
     res.json({ chat: updatedChat });
   } catch (error) {
@@ -197,7 +197,7 @@ exports.markAsRead = async (req, res) => {
     // Reset unread count for this user
     if (userRole === 'employer') {
       chat.unreadCount.employer = 0;
-    } else {
+    } else if (userRole === 'jobSeeker' || userRole === 'employee') {
       chat.unreadCount.jobSeeker = 0;
     }
 
@@ -231,6 +231,72 @@ exports.deleteChat = async (req, res) => {
     res.json({ message: 'Chat deleted successfully' });
   } catch (error) {
     console.error('Error in deleteChat:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Accept a chat request (employer only) - creates an application
+exports.acceptChat = async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    if (userRole !== 'employer') {
+      return res.status(403).json({ message: 'Only employers can accept chat requests' });
+    }
+
+    const chat = await Chat.findById(chatId);
+    if (!chat) {
+      return res.status(404).json({ message: 'Chat not found' });
+    }
+
+    // Verify user is the employer of this chat
+    if (chat.employerId.toString() !== userId) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    // Check if already accepted
+    if (chat.acceptedByEmployer) {
+      return res.status(400).json({ message: 'Chat request already accepted' });
+    }
+
+    // Mark chat as accepted
+    chat.acceptedByEmployer = true;
+    chat.acceptedAt = new Date();
+    await chat.save();
+
+    // Create an application record
+    const Application = require('../models/Application');
+    
+    // Check if application already exists
+    const existingApplication = await Application.findOne({
+      jobId: chat.jobId,
+      applicantId: chat.jobSeekerId
+    });
+
+    if (!existingApplication) {
+      await Application.create({
+        jobId: chat.jobId,
+        applicantId: chat.jobSeekerId,
+        status: 'pending',
+        coverLetter: 'Application created from chat request',
+        appliedAt: new Date()
+      });
+    }
+
+    // Populate and return updated chat
+    const updatedChat = await Chat.findById(chatId)
+      .populate('jobId', 'jobDetails.jobTitle jobDetails.businessName')
+      .populate('employerId', 'fullName email')
+      .populate('jobSeekerId', 'fullName email');
+
+    res.json({ 
+      message: 'Chat request accepted successfully',
+      chat: updatedChat 
+    });
+  } catch (error) {
+    console.error('Error in acceptChat:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };

@@ -7,7 +7,8 @@ const {
   getJobChats,
   sendMessage,
   markAsRead,
-  deleteChat
+  deleteChat,
+  acceptChat
 } = require('../controllers/chatController');
 
 // Get all chats for logged-in user
@@ -24,6 +25,9 @@ router.post('/:chatId/message', protect, sendMessage);
 
 // Mark messages as read
 router.put('/:chatId/read', protect, markAsRead);
+
+// Accept a chat request (employer only)
+router.post('/:chatId/accept', protect, acceptChat);
 
 // Delete a chat
 router.delete('/:chatId', protect, deleteChat);

@@ -172,6 +172,36 @@ export default function ChatsPage() {
     }
   };
 
+  const acceptChat = async (chatId) => {
+    if (!confirm('Accept this chat request? This will create an application for the job seeker.')) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${BACKEND_URL}/api/chats/${chatId}/accept`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Update the chat in list
+        setChats(prevChats =>
+          prevChats.map(c =>
+            c._id === chatId ? data.chat : c
+          )
+        );
+        // Update selected chat if it's the one being accepted
+        if (selectedChat?._id === chatId) {
+          setSelectedChat(data.chat);
+        }
+        alert('Chat request accepted! Application created.');
+      }
+    } catch (error) {
+      console.error('Error accepting chat:', error);
+      alert('Failed to accept chat request');
+    }
+  };
+
   const deleteChat = async (chatId) => {
     if (!confirm('Are you sure you want to delete this conversation?')) return;
 
@@ -296,7 +326,7 @@ export default function ChatsPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <h3 className="font-semibold text-gray-900 dark:text-white truncate">
-                              {otherUser?.name || 'Unknown User'}
+                              {otherUser?.fullName || otherUser?.name || 'Unknown User'}
                             </h3>
                             {unreadCount > 0 && (
                               <span className="bg-blue-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
@@ -307,9 +337,21 @@ export default function ChatsPage() {
                           <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
                             {chat.jobId?.jobDetails?.jobTitle || 'Job Title'}
                           </p>
-                          <p className="text-sm text-gray-500 dark:text-gray-500 truncate mt-1">
-                            {chat.lastMessage || 'No messages yet'}
-                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <p className="text-sm text-gray-500 dark:text-gray-500 truncate flex-1">
+                              {chat.lastMessage || 'No messages yet'}
+                            </p>
+                            {user?.role === 'employer' && !chat.acceptedByEmployer && (
+                              <span className="text-xs bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 px-2 py-0.5 rounded-full whitespace-nowrap">
+                                Pending
+                              </span>
+                            )}
+                            {chat.acceptedByEmployer && (
+                              <span className="text-xs text-green-600 dark:text-green-400 whitespace-nowrap">
+                                ✓
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <span className="text-xs text-gray-400 dark:text-gray-500 ml-2">
                           {formatTime(chat.lastMessageTime)}
@@ -330,13 +372,26 @@ export default function ChatsPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <h2 className="font-semibold text-gray-900 dark:text-white">
-                          {getOtherUser(selectedChat)?.name || 'Unknown User'}
+                          {getOtherUser(selectedChat)?.fullName || getOtherUser(selectedChat)?.name || 'Unknown User'}
                         </h2>
                         <p className="text-sm text-gray-600 dark:text-gray-400">
                           {selectedChat.jobId?.jobDetails?.jobTitle || 'Job Title'}
                         </p>
+                        {selectedChat.acceptedByEmployer && (
+                          <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                            ✓ Request Accepted
+                          </p>
+                        )}
                       </div>
                       <div className="flex gap-2">
+                        {user?.role === 'employer' && !selectedChat.acceptedByEmployer && (
+                          <button
+                            onClick={() => acceptChat(selectedChat._id)}
+                            className="px-3 py-1 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                          >
+                            Accept Request
+                          </button>
+                        )}
                         <button
                           onClick={() => router.push(`/job/${selectedChat.jobId._id}`)}
                           className="px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"

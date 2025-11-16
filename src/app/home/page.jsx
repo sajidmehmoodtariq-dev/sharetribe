@@ -113,7 +113,7 @@ export default function HomePage() {
     if (user) {
       fetchMyJobs();
       fetchAllJobs();
-      if (user.role === 'jobSeeker') {
+      if (user.role === 'jobSeeker' || user.role === 'employee') {
         fetchSavedJobs();
       }
     }
@@ -181,18 +181,11 @@ export default function HomePage() {
   const fetchAllJobs = async () => {
     try {
       const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/jobs/published/list`;
-      console.log('Fetching all jobs from:', url);
-      
       const response = await fetch(url);
-      console.log('Response status:', response.status, response.ok);
 
       if (response.ok) {
         const data = await response.json();
-        console.log('Received jobs data:', data);
-        console.log('Number of jobs:', data.jobs?.length);
         setAllJobs(data.jobs || []);
-      } else {
-        console.error('Failed to fetch jobs:', response.status, response.statusText);
       }
     } catch (error) {
       console.error('Error fetching all jobs:', error);
@@ -587,6 +580,31 @@ export default function HomePage() {
     } catch (error) {
       console.error('Error deleting job:', error);
       alert(error.message || 'Failed to delete job. Please try again.');
+    }
+  };
+
+  const handleRequestChat = async (jobId) => {
+    try {
+      const token = localStorage.getItem('token');
+      // Get or create chat
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/chats/job/${jobId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        // Navigate to chats page with the chat selected
+        router.push(`/chats?chatId=${data.chat._id}`);
+      } else {
+        throw new Error('Failed to create chat');
+      }
+    } catch (err) {
+      alert(err.message || 'Failed to start chat');
     }
   };
 
@@ -1696,19 +1714,16 @@ export default function HomePage() {
                         } else if (activeTab === 'All Jobs') {
                           displayJobs = allJobs;
                         }
-                      } else if (user?.role === 'jobSeeker') {
+                      } else if (user?.role === 'jobSeeker' || user?.role === 'employee') {
+                        // Handle both 'jobSeeker' and 'employee' roles (employee is used in some parts of the app)
                         if (activeTab === 'My Applications') {
                           displayJobs = myJobs; // These are applications
                         } else if (activeTab === 'Search Jobs') {
                           displayJobs = allJobs;
-                          console.log('Search Jobs tab - allJobs:', allJobs.length, 'jobs');
                         } else if (activeTab === 'Saved Jobs') {
                           displayJobs = savedJobs;
                         }
                       }
-
-                      console.log('Before filters - displayJobs:', displayJobs.length);
-                      console.log('Filters:', { searchQuery, location, selectedIndustry });
 
                       // Apply search filters
                       if (searchQuery || location || selectedIndustry) {
@@ -1734,7 +1749,6 @@ export default function HomePage() {
                           
                           return matchesSearch && matchesLocation && matchesIndustry;
                         });
-                        console.log('After filters - displayJobs:', displayJobs.length);
                       }
 
                       // Show empty state if no jobs
@@ -1883,16 +1897,25 @@ export default function HomePage() {
                                 </svg>
                               </button>
                             </>
-                          ) : user?.role === 'jobSeeker' ? (
-                            <button 
-                              onClick={() => toggleFavorite(jobId)}
-                              className="p-1"
-                              title="Save Job"
-                            >
-                              <svg className={`w-5 h-5 ${favoriteJobs.has(jobId) ? 'text-red-500' : 'text-gray-400'}`} fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-                              </svg>
-                            </button>
+                          ) : (user?.role === 'jobSeeker' || user?.role === 'employee') ? (
+                            <>
+                              <button 
+                                onClick={() => handleRequestChat(jobId)}
+                                className="px-3 py-1 bg-[#00EA72] hover:bg-[#00D66C] text-black text-[11px] font-semibold rounded-full transition-colors"
+                                title="Request to chat with employer"
+                              >
+                                Request
+                              </button>
+                              <button 
+                                onClick={() => toggleFavorite(jobId)}
+                                className="p-1"
+                                title="Save Job"
+                              >
+                                <svg className={`w-5 h-5 ${favoriteJobs.has(jobId) ? 'text-red-500' : 'text-gray-400'}`} fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                                </svg>
+                              </button>
+                            </>
                           ) : null}
                         </div>
                       </div>
