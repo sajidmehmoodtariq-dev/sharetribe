@@ -132,58 +132,7 @@ export default function JobSuccess() {
         </div>
 
         {/* Action Steps */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 mb-8">
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">📋 What's Next?</h3>
-          <div className="space-y-4">
-            <div className="flex gap-4">
-              <span className="flex-shrink-0 w-8 h-8 bg-[#00EA72] text-white rounded-full flex items-center justify-center font-bold">
-                1
-              </span>
-              <div>
-                <h4 className="font-semibold text-gray-900 dark:text-white mb-1">Share Your Job</h4>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Share the job listing on your social media or company website to reach more candidates
-                </p>
-              </div>
-            </div>
 
-            <div className="flex gap-4">
-              <span className="flex-shrink-0 w-8 h-8 bg-[#00EA72] text-white rounded-full flex items-center justify-center font-bold">
-                2
-              </span>
-              <div>
-                <h4 className="font-semibold text-gray-900 dark:text-white mb-1">Review Applications</h4>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Check your dashboard regularly for new applications from interested job seekers
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <span className="flex-shrink-0 w-8 h-8 bg-[#00EA72] text-white rounded-full flex items-center justify-center font-bold">
-                3
-              </span>
-              <div>
-                <h4 className="font-semibold text-gray-900 dark:text-white mb-1">Shortlist Candidates</h4>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Save and review promising candidates, then reach out to schedule interviews
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <span className="flex-shrink-0 w-8 h-8 bg-[#00EA72] text-white rounded-full flex items-center justify-center font-bold">
-                4
-              </span>
-              <div>
-                <h4 className="font-semibold text-gray-900 dark:text-white mb-1">Make a Hire</h4>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Find the perfect fit for your team and mark the position as filled
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
 
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
@@ -191,51 +140,14 @@ export default function JobSuccess() {
             href="/home" 
             className="bg-[#00EA72] hover:bg-[#00D66C] text-black font-medium px-6 py-3 rounded-full text-center transition-colors"
           >
-            🏠 Go to Home
-          </Link>
-          <Link 
-            href={`/employer/job/${jobId}`} 
-            className="bg-blue-500 hover:bg-blue-600 text-white font-medium px-6 py-3 rounded-full text-center transition-colors"
-          >
-            👁️ View Job Posting
+          Go to Home
           </Link>
           <Link 
             href="/employer/create-job" 
             className="border-2 border-gray-300 dark:border-gray-600 hover:border-[#00EA72] text-gray-900 dark:text-white font-medium px-6 py-3 rounded-full text-center transition-colors"
           >
-            ➕ Create Another Job
+            Create Another Job
           </Link>
-        </div>
-
-        {/* Tips Section */}
-        <div className="bg-gradient-to-br from-green-50 to-blue-50 dark:from-gray-800 dark:to-gray-700 rounded-2xl p-6">
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">💡 Tips to Attract Better Candidates</h3>
-          <ul className="space-y-2 text-gray-700 dark:text-gray-300">
-            <li className="flex items-start gap-2">
-              <span className="text-lg">📝</span>
-              <span>Make sure your job description is clear and comprehensive</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-lg">💰</span>
-              <span>Provide a competitive salary range to attract qualified candidates</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-lg">🎯</span>
-              <span>Be specific about required qualifications and skills</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-lg">📍</span>
-              <span>Clearly mention the work location and flexibility options</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-lg">⚡</span>
-              <span>Respond quickly to applications to show you're actively hiring</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-lg">🌟</span>
-              <span>Highlight unique benefits and company culture</span>
-            </li>
-          </ul>
         </div>
       </div>
     </div>

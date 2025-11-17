@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,7 +24,10 @@ export default function HomePage() {
   const [jobsLoading, setJobsLoading] = useState(false);
   const [location, setLocation] = useState('');
   const [selectedIndustry, setSelectedIndustry] = useState('');
+  const [selectedEmploymentType, setSelectedEmploymentType] = useState('');
+  const [selectedWorkLocation, setSelectedWorkLocation] = useState('');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [showProfile, setShowProfile] = useState(false);
   const [showSavedProjects, setShowSavedProjects] = useState(false);
   const [showFavouriteJobs, setShowFavouriteJobs] = useState(false);
@@ -53,6 +56,15 @@ export default function HomePage() {
   const [saveMessage, setSaveMessage] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [jobToDelete, setJobToDelete] = useState(null);
+
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // Fetch user data on mount
   useEffect(() => {
@@ -1557,88 +1569,66 @@ export default function HomePage() {
                           </svg>
                         </motion.div>
 
-                        {/* Flattened Filter Options */}
-                        <AnimatePresence>
-                          <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            transition={{ duration: 0.3, delay: 0.2 }}
-                            className="space-y-3"
-                          >
-                            <div className="flex items-center justify-between">
-                              <Label className={`text-[13px] font-medium ${getTextClassName()}`}>
-                                Filter by Industry
-                              </Label>
-                              <button 
-                                onClick={() => setSelectedIndustry('')}
-                                className={`text-[11px] ${getSubTextClassName()} hover:${getTextClassName()}`}
-                              >
-                                Reset
-                              </button>
-                            </div>
-                            
-                            <motion.div 
-                              className="flex flex-wrap gap-2"
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              transition={{ duration: 0.4, delay: 0.3 }}
-                            >
-                              {industries.map((industry, index) => (
-                                <motion.button
-                                  key={industry}
-                                  initial={{ opacity: 0, scale: 0.8 }}
-                                  animate={{ opacity: 1, scale: 1 }}
-                                  transition={{ duration: 0.3, delay: 0.3 + (index * 0.05) }}
-                                  whileHover={{ scale: 1.05 }}
-                                  whileTap={{ scale: 0.95 }}
-                                  onClick={() => setSelectedIndustry(selectedIndustry === industry ? '' : industry)}
-                                  className={`px-4 py-2 rounded-full text-[12px] font-medium transition-all duration-200 ${
-                                    selectedIndustry === industry
-                                      ? 'bg-[#00EA72] text-black shadow-md'
-                                      : `border ${theme === 'dark' ? 'border-gray-600 text-gray-300 hover:border-[#00EA72]' : 'border-gray-300 text-gray-700 hover:border-[#00EA72]'}`
-                                  }`}
-                                >
-                                  {industry}
-                                </motion.button>
-                              ))}
-                            </motion.div>
-                          </motion.div>
-                        </AnimatePresence>
-
-                        {/* Search and Create Job Buttons */}
-                        <motion.div 
-                          className="flex gap-3"
-                          initial={{ opacity: 0, y: 20 }}
+                        {/* Filter Options */}
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.5, delay: 0.5 }}
+                          transition={{ duration: 0.3, delay: 0.2 }}
+                          className="flex gap-3"
                         >
+                          {/* Employment Type Filter */}
+                          <motion.div className="flex-1">
+                            <Label className={`text-[13px] font-medium ${getTextClassName()} mb-2 block`}>
+                              Employment Type
+                            </Label>
+                            <select
+                              value={selectedEmploymentType}
+                              onChange={(e) => setSelectedEmploymentType(e.target.value)}
+                              className={`w-full h-11 ${getInputClassName()} border-2 border-gray-300 text-[13px] px-4 rounded-full`}
+                            >
+                              <option value="">All Types</option>
+                              <option value="full-time">Full-time</option>
+                              <option value="part-time">Part-time</option>
+                              <option value="casual">Casual</option>
+                              <option value="contract">Contract</option>
+                            </select>
+                          </motion.div>
+
+                          {/* Work Location Filter */}
+                          <motion.div className="flex-1">
+                            <Label className={`text-[13px] font-medium ${getTextClassName()} mb-2 block`}>
+                              Work Location
+                            </Label>
+                            <select
+                              value={selectedWorkLocation}
+                              onChange={(e) => setSelectedWorkLocation(e.target.value)}
+                              className={`w-full h-11 ${getInputClassName()} border-2 border-gray-300 text-[13px] px-4 rounded-full`}
+                            >
+                              <option value="">All Locations</option>
+                              <option value="on-site">On-site</option>
+                              <option value="remote">Remote</option>
+                              <option value="hybrid">Hybrid</option>
+                            </select>
+                          </motion.div>
+                        </motion.div>
+
+                        {/* Create Job Button (Employer Only) */}
+                        {user?.role === 'employer' && (
                           <motion.div
-                            className="flex-1"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.5, delay: 0.5 }}
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                           >
-                            <Button
-                              onClick={handleSearch}
-                              className="w-full h-12 bg-[#00EA72] hover:bg-[#00D66C] text-black font-medium text-[14px] rounded-full shadow-lg hover:shadow-xl transition-all duration-200"
+                            <Button 
+                              onClick={() => router.push('/employer/create-job')}
+                              className="w-full h-12 bg-[#00EA72] hover:bg-[#00D66C] text-black  text-[14px] rounded-full shadow-lg hover:shadow-xl transition-all duration-200"
                             >
-                              Search
+                              Create new Job
                             </Button>
                           </motion.div>
-                          {user?.role === 'employer' && (
-                            <motion.div
-                              whileHover={{ scale: 1.02 }}
-                              whileTap={{ scale: 0.98 }}
-                            >
-                              <Button 
-                                onClick={() => router.push('/employer/create-job')}
-                                className="h-12 bg-black hover:bg-gray-800 text-white font-medium text-[14px] px-6 rounded-full shadow-lg hover:shadow-xl transition-all duration-200"
-                              >
-                                + Create Job
-                              </Button>
-                            </motion.div>
-                          )}
-                        </motion.div>
+                        )}
                       </div>
                     </motion.div>
 
@@ -1671,34 +1661,34 @@ export default function HomePage() {
                       }
 
                       // Apply search filters
-                      if (searchQuery || location || selectedIndustry) {
+                      if (debouncedSearchQuery || location || selectedEmploymentType || selectedWorkLocation) {
                         displayJobs = displayJobs.filter(job => {
                           const jobData = job.jobId || job; // Handle application structure
                           const jobTitle = (jobData.jobDetails?.jobTitle || jobData.jobTitle || '').toLowerCase();
                           const businessName = (jobData.jobDetails?.businessName || jobData.businessName || '').toLowerCase();
                           const jobDescription = (jobData.jobSummary?.summary || jobData.jobDetails?.jobDescription || jobData.description || '').toLowerCase();
                           const jobLocation = (jobData.postJob?.workLocation || jobData.location || '').toLowerCase();
-                          const industry = (jobData.jobDetails?.industry || jobData.industry || '').toLowerCase();
+                          const employmentType = (jobData.jobDetails?.employmentType || jobData.employmentType || '').toLowerCase();
                           
-                          const searchLower = searchQuery.toLowerCase();
+                          const searchLower = debouncedSearchQuery.toLowerCase();
                           const locationLower = location.toLowerCase();
-                          const industryLower = selectedIndustry.toLowerCase();
                           
-                          const matchesSearch = !searchQuery || 
+                          const matchesSearch = !debouncedSearchQuery || 
                             jobTitle.includes(searchLower) || 
                             businessName.includes(searchLower) || 
                             jobDescription.includes(searchLower);
                           
                           const matchesLocation = !location || jobLocation.includes(locationLower);
-                          const matchesIndustry = !selectedIndustry || industry.includes(industryLower);
+                          const matchesEmploymentType = !selectedEmploymentType || employmentType === selectedEmploymentType;
+                          const matchesWorkLocation = !selectedWorkLocation || jobLocation === selectedWorkLocation;
                           
-                          return matchesSearch && matchesLocation && matchesIndustry;
+                          return matchesSearch && matchesLocation && matchesEmploymentType && matchesWorkLocation;
                         });
                       }
 
                       // Show empty state if no jobs
                       if (displayJobs.length === 0) {
-                        const hasFilters = searchQuery || location || selectedIndustry;
+                        const hasFilters = debouncedSearchQuery || location || selectedEmploymentType || selectedWorkLocation;
                         return (
                           <div className={`text-center py-12 ${getCardClassName()} rounded-3xl border ${theme === 'dark' ? 'border-gray-700' : 'border-gray-300'}`}>
                             <svg className={`w-16 h-16 mx-auto mb-4 ${getSubTextClassName()}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1723,7 +1713,8 @@ export default function HomePage() {
                                 onClick={() => {
                                   setSearchQuery('');
                                   setLocation('');
-                                  setSelectedIndustry('');
+                                  setSelectedEmploymentType('');
+                                  setSelectedWorkLocation('');
                                 }}
                                 className="mt-4 px-4 py-2 bg-[#00EA72] hover:bg-[#00D66C] text-black font-medium rounded-full transition-colors"
                               >
@@ -1751,19 +1742,10 @@ export default function HomePage() {
                           className={`border rounded-3xl p-4 ${getCardClassName()} shadow-sm ${theme === 'dark' ? 'border-gray-700' : 'border-gray-300'} cursor-pointer`}
                         >
                       <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-start space-x-3">
-                          <div className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center shrink-0">
-                            <span className="text-[12px] font-bold text-white">
-                              {(jobData.jobDetails?.businessName || jobData.businessName || jobData.company || 'Company').charAt(0).toUpperCase()}
-                            </span>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h4 className={`font-semibold text-[14px] ${getTextClassName()} mb-1 truncate`}>
-                              {jobData.jobDetails?.jobTitle || jobData.jobTitle || jobData.title || 'Job Title'}
-                            </h4>
-                            <p className={`text-[12px] ${getSubTextClassName()} mb-1 truncate`}>
-                              {jobData.jobDetails?.businessName || jobData.businessName || jobData.company || 'Company Name'}
-                            </p>
+                        <div className="flex-1 min-w-0">
+                          <h4 className={`font-semibold text-[14px] ${getTextClassName()} mb-1 truncate`}>
+                            {jobData.jobDetails?.jobTitle || jobData.jobTitle || jobData.title || 'Job Title'}
+                          </h4>
                             {/* Show application status for job seekers */}
                             {isApplication && job.status && (
                               <div className="mb-2">
@@ -1792,46 +1774,34 @@ export default function HomePage() {
                                 </span>
                               </div>
                             )}
-                            <div className={`flex items-center space-x-3 text-[10px] ${getSubTextClassName()}`}>
-                              <div className="flex items-center space-x-1">
+                          <div className={`flex items-center space-x-3 text-[10px] ${getSubTextClassName()}`}>
+                            <div className="flex items-center space-x-1">
                                 <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                                 </svg>
-                                <span className="truncate">{jobData.postJob?.city || jobData.location || jobData.address || jobData.postJob?.workLocation || 'Remote'}</span>
-                              </div>
-                              {jobData.workSchedule && (
-                                <div className="flex items-center space-x-1">
-                                  <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                  </svg>
-                                  <span>{jobData.workSchedule || jobData.schedule}</span>
-                                </div>
-                              )}
-                              {jobData.employmentType && (
-                                <div className="flex items-center space-x-1">
-                                  <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0H8m8 0v2a2 2 0 002 2M8 6v2a2 2 0 002 2" />
-                                  </svg>
-                                  <span>{jobData.employmentType || jobData.type}</span>
-                                </div>
-                              )}
+                              <span className="truncate">{jobData.postJob?.city || jobData.location || jobData.address || jobData.postJob?.workLocation || 'Remote'}</span>
                             </div>
+                            {jobData.workSchedule && (
+                              <div className="flex items-center space-x-1">
+                                <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span>{jobData.workSchedule || jobData.schedule}</span>
+                              </div>
+                            )}
+                            {jobData.employmentType && (
+                              <div className="flex items-center space-x-1">
+                                <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0H8m8 0v2a2 2 0 002 2M8 6v2a2 2 0 002 2" />
+                                </svg>
+                                <span>{jobData.employmentType || jobData.type}</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center space-x-2 shrink-0">
                           {activeTab === 'My Jobs' && user?.role === 'employer' && !isApplication ? (
                             <>
-                              <motion.button 
-                                whileHover={{ scale: 1.1 }}
-                                whileTap={{ scale: 0.9 }}
-                                onClick={() => router.push(`/chats?jobId=${jobId}`)}
-                                className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
-                                title="View Messages"
-                              >
-                                <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                                </svg>
-                              </motion.button>
                               <motion.button 
                                 whileHover={{ scale: 1.1 }}
                                 whileTap={{ scale: 0.9 }}
@@ -1882,9 +1852,12 @@ export default function HomePage() {
                         </div>
                       </div>
 
-                      <p className={`text-[12px] ${getSubTextClassName()} mb-3 line-clamp-2`}>
-                        {jobData.jobDescription || jobData.description || 'No description available'}
-                      </p>
+                      {(jobData.jobSummary?.summary || jobData.jobDescription || jobData.description) && (
+                        <p className={`text-[12px] ${getSubTextClassName()} mb-3 line-clamp-2`}>
+                          {(jobData.jobSummary?.summary || jobData.jobDescription || jobData.description || '').substring(0, 120)}
+                          {(jobData.jobSummary?.summary || jobData.jobDescription || jobData.description || '').length > 120 ? '...' : ''}
+                        </p>
+                      )}
 
                       {(jobData.skillsRequired || jobData.essentialSkills)?.length > 0 && (
                         <div className="mb-3">
@@ -1954,32 +1927,6 @@ export default function HomePage() {
               </>
             )}
             </AnimatePresence>
-          </div>
-        </div>
-
-        {/* Bottom Navigation */}
-        <div className="px-2 py-4">
-          <div className="flex justify-center items-center space-x-1">
-            <button className="p-1">
-              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            {[1, 2, 3, 4, 5].map((item, index) => (
-              <button
-                key={item}
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-medium ${
-                  index === 0 ? 'bg-[#00EA72] text-white' : 'border border-gray-300 text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                {item}
-              </button>
-            ))}
-            <button className="p-1">
-              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
           </div>
         </div>
       </div>
