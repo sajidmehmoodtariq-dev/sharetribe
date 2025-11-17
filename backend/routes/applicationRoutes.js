@@ -6,6 +6,7 @@ const { protect } = require('../middleware/auth');
 // Job Seeker Routes
 router.post('/apply', protect, applicationController.applyForJob);
 router.get('/my-applications', protect, applicationController.getMyApplications);
+router.put('/:applicationId', protect, applicationController.updateApplication);
 router.delete('/:applicationId/withdraw', protect, applicationController.withdrawApplication);
 
 // Employer Routes

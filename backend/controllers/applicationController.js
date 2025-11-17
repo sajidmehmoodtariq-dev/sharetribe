@@ -5,7 +5,7 @@ const User = require('../models/User');
 // Apply for a job
 exports.applyForJob = async (req, res) => {
   try {
-    const { jobId, coverLetter } = req.body;
+    const { jobId, coverLetter, resumeUrl, resumeFileName, resumeFileSize } = req.body;
     const applicantId = req.user._id;
 
     // Validate job exists and is published
@@ -30,6 +30,9 @@ exports.applyForJob = async (req, res) => {
       applicantId,
       employerId: job.employerId,
       coverLetter,
+      resumeUrl,
+      resumeFileName,
+      resumeFileSize,
       status: 'pending'
     });
 
@@ -228,6 +231,48 @@ exports.withdrawApplication = async (req, res) => {
     res.status(200).json({
       success: true,
       message: 'Application withdrawn successfully'
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Update/Edit application (job seeker only)
+exports.updateApplication = async (req, res) => {
+  try {
+    const { applicationId } = req.params;
+    const { coverLetter, resumeUrl, resumeFileName, resumeFileSize } = req.body;
+
+    // Find application
+    const application = await Application.findById(applicationId);
+    if (!application) {
+      return res.status(404).json({ error: 'Application not found' });
+    }
+
+    // Verify applicant owns the application
+    if (application.applicantId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: 'Not authorized to update this application' });
+    }
+
+    // Don't allow updates if application is not in pending or reviewing status
+    if (!['pending', 'reviewing'].includes(application.status)) {
+      return res.status(400).json({ 
+        error: 'Cannot update application in current status. Applications can only be edited when pending or under review.' 
+      });
+    }
+
+    // Update fields
+    if (coverLetter !== undefined) application.coverLetter = coverLetter;
+    if (resumeUrl !== undefined) application.resumeUrl = resumeUrl;
+    if (resumeFileName !== undefined) application.resumeFileName = resumeFileName;
+    if (resumeFileSize !== undefined) application.resumeFileSize = resumeFileSize;
+
+    await application.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Application updated successfully',
+      application
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

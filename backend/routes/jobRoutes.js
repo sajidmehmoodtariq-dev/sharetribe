@@ -30,6 +30,9 @@ router.get('/published/list', jobController.getAllPublishedJobs);
 // Update job status (publish, close, archive, etc.)
 router.patch('/:jobId/status', protect, jobController.updateJobStatus);
 
+// Close job (employer only)
+router.post('/:jobId/close', protect, jobController.closeJob);
+
 // Delete a job
 router.delete('/:jobId', protect, jobController.deleteJob);
 

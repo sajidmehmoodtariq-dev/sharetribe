@@ -286,8 +286,12 @@ exports.getEmployerJobs = async (req, res) => {
 exports.getAllPublishedJobs = async (req, res) => {
   try {
     const { page = 1, limit = 100, employmentType, shiftPreference, workLocation, search } = req.query;
+    const Application = require('../models/Application');
 
-    let query = { status: 'published' };
+    let query = { 
+      status: 'published',
+      isActive: true  // Only show active jobs
+    };
 
     if (employmentType) {
       query['jobDetails.employmentType'] = employmentType;
@@ -310,6 +314,12 @@ exports.getAllPublishedJobs = async (req, res) => {
     }
 
     const skip = (page - 1) * limit;
+
+    // Get all jobs with accepted applications (assigned jobs)
+    const assignedJobs = await Application.find({ status: 'accepted' }).distinct('jobId');
+    
+    // Exclude assigned jobs from the query
+    query._id = { $nin: assignedJobs };
 
     const jobs = await Job.find(query)
       .populate('employerId', 'fullName email businessSummary mobileNumber')
@@ -362,6 +372,39 @@ exports.updateJobStatus = async (req, res) => {
     res.status(200).json({
       success: true,
       message: `Job status updated to ${status}`,
+      job
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Close job (employer only)
+exports.closeJob = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const employerId = req.user.id;
+
+    const job = await Job.findById(jobId);
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+
+    // Verify the employer owns this job
+    if (job.employerId.toString() !== employerId) {
+      return res.status(403).json({ error: 'Not authorized to close this job' });
+    }
+
+    job.status = 'closed';
+    job.closeDate = new Date();
+    job.isActive = false;
+    job.lastModified = new Date();
+    
+    await job.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Job closed successfully',
       job
     });
   } catch (error) {

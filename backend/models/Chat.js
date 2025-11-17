@@ -61,6 +61,14 @@ const chatSchema = new mongoose.Schema({
   acceptedAt: {
     type: Date,
     default: null
+  },
+  closedByEmployer: {
+    type: Boolean,
+    default: false
+  },
+  closedAt: {
+    type: Date,
+    default: null
   }
 }, {
   timestamps: true

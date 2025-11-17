@@ -135,6 +135,14 @@ exports.sendMessage = async (req, res) => {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
+    // Check if chat is closed
+    if (chat.closedByEmployer) {
+      // Only employer can send messages in closed chat
+      if (userRole !== 'employer') {
+        return res.status(403).json({ message: 'This conversation has been closed by the employer' });
+      }
+    }
+
     // Add message
     const newMessage = {
       senderId: userId,
@@ -297,6 +305,100 @@ exports.acceptChat = async (req, res) => {
     });
   } catch (error) {
     console.error('Error in acceptChat:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Close a chat (employer only) - prevents job seeker from sending messages
+exports.closeChat = async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    if (userRole !== 'employer') {
+      return res.status(403).json({ message: 'Only employers can close chats' });
+    }
+
+    const chat = await Chat.findById(chatId);
+    if (!chat) {
+      return res.status(404).json({ message: 'Chat not found' });
+    }
+
+    // Verify user is the employer of this chat
+    if (chat.employerId.toString() !== userId) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    // Check if already closed
+    if (chat.closedByEmployer) {
+      return res.status(400).json({ message: 'Chat is already closed' });
+    }
+
+    // Mark chat as closed
+    chat.closedByEmployer = true;
+    chat.closedAt = new Date();
+    await chat.save();
+
+    // Populate and return updated chat
+    const updatedChat = await Chat.findById(chatId)
+      .populate('jobId', 'jobDetails.jobTitle jobDetails.businessName')
+      .populate('employerId', 'fullName email')
+      .populate('jobSeekerId', 'fullName email');
+
+    res.json({ 
+      message: 'Chat closed successfully',
+      chat: updatedChat 
+    });
+  } catch (error) {
+    console.error('Error in closeChat:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Reopen a chat (employer only)
+exports.reopenChat = async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    if (userRole !== 'employer') {
+      return res.status(403).json({ message: 'Only employers can reopen chats' });
+    }
+
+    const chat = await Chat.findById(chatId);
+    if (!chat) {
+      return res.status(404).json({ message: 'Chat not found' });
+    }
+
+    // Verify user is the employer of this chat
+    if (chat.employerId.toString() !== userId) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    // Check if chat is closed
+    if (!chat.closedByEmployer) {
+      return res.status(400).json({ message: 'Chat is not closed' });
+    }
+
+    // Reopen chat
+    chat.closedByEmployer = false;
+    chat.closedAt = null;
+    await chat.save();
+
+    // Populate and return updated chat
+    const updatedChat = await Chat.findById(chatId)
+      .populate('jobId', 'jobDetails.jobTitle jobDetails.businessName')
+      .populate('employerId', 'fullName email')
+      .populate('jobSeekerId', 'fullName email');
+
+    res.json({ 
+      message: 'Chat reopened successfully',
+      chat: updatedChat 
+    });
+  } catch (error) {
+    console.error('Error in reopenChat:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };

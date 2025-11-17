@@ -24,6 +24,17 @@ const applicationSchema = new mongoose.Schema({
     maxlength: [2000, 'Cover letter cannot exceed 2000 characters']
   },
   
+  // Resume/Proposal Attachment
+  resumeUrl: {
+    type: String
+  },
+  resumeFileName: {
+    type: String
+  },
+  resumeFileSize: {
+    type: Number
+  },
+  
   // Status
   status: {
     type: String,

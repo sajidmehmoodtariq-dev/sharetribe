@@ -56,6 +56,34 @@ export default function HomePage() {
   const [saveMessage, setSaveMessage] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [jobToDelete, setJobToDelete] = useState(null);
+  const [showEditJobModal, setShowEditJobModal] = useState(false);
+  const [editingJob, setEditingJob] = useState(null);
+  const [editJobForm, setEditJobForm] = useState({
+    // Job Details
+    jobTitle: '',
+    employmentType: '',
+    industryType: '',
+    minimumExperience: '',
+    // Job Summary
+    summary: '',
+    // Qualifications
+    qualifications: [],
+    // Post Job Details
+    salary: '',
+    salaryMin: '',
+    salaryMax: '',
+    salaryFrequency: 'hourly',
+    numberOfPositions: 1,
+    applicationDeadline: '',
+    closingDate: '',
+    workLocation: '',
+    address: '',
+    city: '',
+    state: '',
+    postcode: '',
+    country: 'Australia'
+  });
+  const [editJobStep, setEditJobStep] = useState(1);
 
   // Debounce search query
   useEffect(() => {
@@ -520,6 +548,11 @@ export default function HomePage() {
       return;
     }
 
+    if (!jobId) {
+      console.error('Job ID is missing');
+      return;
+    }
+
     try {
       const token = localStorage.getItem('token');
       const isFavorited = favoriteJobs.has(jobId);
@@ -527,14 +560,17 @@ export default function HomePage() {
       // Call API to save/unsave job
       const endpoint = isFavorited ? 'unsave' : 'save';
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/jobs/${jobId}/${endpoint}`,
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/jobs/${endpoint}`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,
           },
-          body: JSON.stringify({ userId: user._id }),
+          body: JSON.stringify({ 
+            jobId: jobId,
+            userId: user._id 
+          }),
         }
       );
 
@@ -573,6 +609,155 @@ export default function HomePage() {
   const handleDeleteJob = async (jobId) => {
     setJobToDelete(jobId);
     setShowDeleteModal(true);
+  };
+
+  const handleEditJob = async (job) => {
+    setEditingJob(job);
+    setEditJobForm({
+      // Job Details
+      jobTitle: job.jobDetails?.jobTitle || '',
+      employmentType: job.jobDetails?.employmentType || '',
+      industryType: job.jobDetails?.industryType || '',
+      minimumExperience: job.jobDetails?.minimumExperience || '',
+      // Job Summary
+      summary: job.jobSummary?.summary || '',
+      // Qualifications
+      qualifications: job.qualifications?.qualifications || [],
+      // Post Job Details
+      salary: job.postJob?.salary || '',
+      salaryMin: job.postJob?.salaryRange?.min || '',
+      salaryMax: job.postJob?.salaryRange?.max || '',
+      salaryFrequency: job.postJob?.salaryFrequency || 'hourly',
+      numberOfPositions: job.postJob?.numberOfPositions || 1,
+      applicationDeadline: job.postJob?.applicationDeadline ? new Date(job.postJob.applicationDeadline).toISOString().split('T')[0] : '',
+      closingDate: job.postJob?.closingDate ? new Date(job.postJob.closingDate).toISOString().split('T')[0] : '',
+      workLocation: job.postJob?.workLocation || '',
+      address: job.postJob?.address || '',
+      city: job.postJob?.city || '',
+      state: job.postJob?.state || '',
+      postcode: job.postJob?.postcode || '',
+      country: job.postJob?.country || 'Australia'
+    });
+    setEditJobStep(1);
+    setShowEditJobModal(true);
+  };
+
+  const handleSaveEditJob = async () => {
+    if (!editingJob) return;
+
+    setSaveLoading(true);
+    setSaveMessage('');
+
+    try {
+      const token = localStorage.getItem('token');
+      
+      // Update job details
+      const jobDetailsResponse = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/jobs/${editingJob._id}/job-details`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            jobTitle: editJobForm.jobTitle,
+            employmentType: editJobForm.employmentType,
+            industryType: editJobForm.industryType,
+            minimumExperience: editJobForm.minimumExperience,
+          }),
+        }
+      );
+
+      if (!jobDetailsResponse.ok) {
+        throw new Error('Failed to update job details');
+      }
+
+      // Update job summary
+      const summaryResponse = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/jobs/${editingJob._id}/job-summary`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            summary: editJobForm.summary,
+          }),
+        }
+      );
+
+      if (!summaryResponse.ok) {
+        throw new Error('Failed to update job summary');
+      }
+
+      // Update qualifications
+      const qualificationsResponse = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/jobs/${editingJob._id}/qualifications`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            qualifications: editJobForm.qualifications,
+          }),
+        }
+      );
+
+      if (!qualificationsResponse.ok) {
+        throw new Error('Failed to update qualifications');
+      }
+
+      // Update post job details
+      const postJobResponse = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/jobs/${editingJob._id}/post-job`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            salary: editJobForm.salary,
+            salaryRange: {
+              min: editJobForm.salaryMin ? Number(editJobForm.salaryMin) : undefined,
+              max: editJobForm.salaryMax ? Number(editJobForm.salaryMax) : undefined,
+            },
+            salaryFrequency: editJobForm.salaryFrequency,
+            workLocation: editJobForm.workLocation,
+            numberOfPositions: editJobForm.numberOfPositions,
+            applicationDeadline: editJobForm.applicationDeadline || undefined,
+            closingDate: editJobForm.closingDate || undefined,
+            city: editJobForm.city,
+            address: editJobForm.address,
+            state: editJobForm.state,
+            postcode: editJobForm.postcode,
+            country: editJobForm.country,
+          }),
+        }
+      );
+
+      if (!postJobResponse.ok) {
+        throw new Error('Failed to update post job details');
+      }
+
+      setSaveMessage('Job updated successfully!');
+      setTimeout(() => {
+        setShowEditJobModal(false);
+        setEditingJob(null);
+        setSaveMessage('');
+        setEditJobStep(1);
+        fetchMyJobs(); // Refresh job list
+      }, 1500);
+    } catch (error) {
+      console.error('Error updating job:', error);
+      setSaveMessage(error.message || 'Failed to update job');
+    } finally {
+      setSaveLoading(false);
+    }
   };
 
   const confirmDeleteJob = async () => {
@@ -1805,7 +1990,10 @@ export default function HomePage() {
                               <motion.button 
                                 whileHover={{ scale: 1.1 }}
                                 whileTap={{ scale: 0.9 }}
-                                onClick={() => router.push(`/employer/create-job/${jobId}/step-1`)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditJob(jobData);
+                                }}
                                 className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
                                 title="Edit Job"
                               >
@@ -1901,7 +2089,7 @@ export default function HomePage() {
                           )}
                           {activeTab === 'My Jobs' && user?.role === 'employer' && (
                             <span className={`text-[10px] ${getSubTextClassName()}`}>
-                              {jobData.applicationsCount || 0} applications
+                              {jobData.totalApplications || 0} applications
                             </span>
                           )}
                         </div>
@@ -2118,6 +2306,470 @@ export default function HomePage() {
           </div>
         </div>
       )}
+
+      {/* Edit Job Modal */}
+      <AnimatePresence>
+        {showEditJobModal && editingJob && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ backgroundColor: 'rgba(0, 0, 0, 0.7)' }}
+            onClick={() => {
+              if (!saveLoading) {
+                setShowEditJobModal(false);
+                setEditingJob(null);
+                setEditJobStep(1);
+                setSaveMessage('');
+              }
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className={`${getCardClassName()} rounded-3xl border ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h2 className={`text-3xl font-bold ${getTextClassName()} mb-2`}>Edit Job Posting</h2>
+                  <p className={`text-sm ${getSubTextClassName()}`}>
+                    Update your job details • Step {editJobStep} of 4
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    if (!saveLoading) {
+                      setShowEditJobModal(false);
+                      setEditingJob(null);
+                      setEditJobStep(1);
+                      setSaveMessage('');
+                    }
+                  }}
+                  className={`p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 ${getSubTextClassName()} hover:text-red-500 transition-all`}
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Progress Steps */}
+              <div className="flex items-center justify-between mb-8">
+                {[1, 2, 3, 4].map((step) => (
+                  <div key={step} className="flex items-center flex-1">
+                    <button
+                      onClick={() => setEditJobStep(step)}
+                      className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-all ${
+                        editJobStep === step
+                          ? 'bg-[#00EA72] text-black scale-110'
+                          : editJobStep > step
+                          ? 'bg-[#00EA72]/30 text-[#00EA72]'
+                          : `${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'} ${getSubTextClassName()}`
+                      }`}
+                    >
+                      {step}
+                    </button>
+                    {step < 4 && (
+                      <div className={`flex-1 h-1 mx-2 rounded-full ${
+                        editJobStep > step ? 'bg-[#00EA72]' : theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'
+                      }`} />
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Save Message */}
+              <AnimatePresence>
+                {saveMessage && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className={`mb-6 p-4 rounded-xl ${
+                      saveMessage.includes('success')
+                        ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200'
+                        : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      <span className="font-medium">{saveMessage}</span>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Step Content */}
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={editJobStep}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  {editJobStep === 1 && (
+                    <div className="space-y-6">
+                      <h3 className={`text-xl font-bold ${getTextClassName()} mb-4`}>📋 Basic Job Details</h3>
+                      
+                      {/* Job Title */}
+                      <div>
+                        <Label className={`${getTextClassName()} mb-2 block font-medium text-sm`}>Job Title *</Label>
+                        <Input
+                          value={editJobForm.jobTitle}
+                          onChange={(e) => setEditJobForm(prev => ({ ...prev, jobTitle: e.target.value }))}
+                          className={`${getInputClassName()} h-12 rounded-xl`}
+                          placeholder="e.g., Senior Software Engineer"
+                        />
+                      </div>
+
+                      {/* Employment Type & Industry Type */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label className={`${getTextClassName()} mb-2 block font-medium text-sm`}>Employment Type *</Label>
+                          <select
+                            value={editJobForm.employmentType}
+                            onChange={(e) => setEditJobForm(prev => ({ ...prev, employmentType: e.target.value }))}
+                            className={`w-full h-12 ${getInputClassName()} border-2 ${theme === 'dark' ? 'border-gray-600' : 'border-gray-300'} rounded-xl px-4`}
+                          >
+                            <option value="">Select Type</option>
+                            <option value="full-time">Full-time</option>
+                            <option value="part-time">Part-time</option>
+                            <option value="casual">Casual</option>
+                            <option value="contract">Contract</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <Label className={`${getTextClassName()} mb-2 block font-medium text-sm`}>Industry Type *</Label>
+                          <select
+                            value={editJobForm.industryType}
+                            onChange={(e) => setEditJobForm(prev => ({ ...prev, industryType: e.target.value }))}
+                            className={`w-full h-12 ${getInputClassName()} border-2 ${theme === 'dark' ? 'border-gray-600' : 'border-gray-300'} rounded-xl px-4`}
+                          >
+                            <option value="">Select Industry</option>
+                            <option value="Technology">Technology</option>
+                            <option value="Healthcare">Healthcare</option>
+                            <option value="Finance">Finance</option>
+                            <option value="Education">Education</option>
+                            <option value="Construction">Construction</option>
+                            <option value="Manufacturing">Manufacturing</option>
+                            <option value="Retail">Retail</option>
+                            <option value="Hospitality">Hospitality</option>
+                            <option value="Transportation">Transportation</option>
+                            <option value="Real Estate">Real Estate</option>
+                            <option value="Legal">Legal</option>
+                            <option value="Marketing">Marketing</option>
+                            <option value="Arts & Entertainment">Arts & Entertainment</option>
+                            <option value="Agriculture">Agriculture</option>
+                            <option value="Other">Other</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Minimum Experience */}
+                      <div>
+                        <Label className={`${getTextClassName()} mb-2 block font-medium text-sm`}>Minimum Experience *</Label>
+                        <select
+                          value={editJobForm.minimumExperience}
+                          onChange={(e) => setEditJobForm(prev => ({ ...prev, minimumExperience: e.target.value }))}
+                          className={`w-full h-12 ${getInputClassName()} border-2 ${theme === 'dark' ? 'border-gray-600' : 'border-gray-300'} rounded-xl px-4`}
+                        >
+                          <option value="">Select Experience</option>
+                          <option value="no-experience">No Experience</option>
+                          <option value="1-2-years">1-2 Years</option>
+                          <option value="2-5-years">2-5 Years</option>
+                          <option value="5-10-years">5-10 Years</option>
+                          <option value="10plus-years">10+ Years</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+
+                  {editJobStep === 2 && (
+                    <div className="space-y-6">
+                      <h3 className={`text-xl font-bold ${getTextClassName()} mb-4`}>📝 Job Description</h3>
+                      
+                      {/* Job Summary */}
+                      <div>
+                        <Label className={`${getTextClassName()} mb-2 block font-medium text-sm`}>Job Summary</Label>
+                        <Textarea
+                          value={editJobForm.summary}
+                          onChange={(e) => setEditJobForm(prev => ({ ...prev, summary: e.target.value }))}
+                          rows={18}
+                          className={`${getInputClassName()} resize-none rounded-xl`}
+                          placeholder="Describe the job role, responsibilities, and requirements..."
+                        />
+                        <p className={`text-xs ${getSubTextClassName()} mt-2`}>
+                          {editJobForm.summary.length} / 5000 characters
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {editJobStep === 3 && (
+                    <div className="space-y-6">
+                      <h3 className={`text-xl font-bold ${getTextClassName()} mb-4`}>🎯 Qualifications</h3>
+                      
+                      {/* Qualifications List */}
+                      <div>
+                        <Label className={`${getTextClassName()} mb-2 block font-medium text-sm`}>Qualifications (Optional)</Label>
+                        <div className="space-y-3">
+                          {editJobForm.qualifications.map((qual, index) => (
+                            <div key={index} className="flex gap-2">
+                              <Input
+                                value={qual}
+                                onChange={(e) => {
+                                  const newQuals = [...editJobForm.qualifications];
+                                  newQuals[index] = e.target.value;
+                                  setEditJobForm(prev => ({ ...prev, qualifications: newQuals }));
+                                }}
+                                className={`${getInputClassName()} h-11 rounded-xl flex-1`}
+                                placeholder={`Qualification ${index + 1}`}
+                              />
+                              <button
+                                onClick={() => {
+                                  const newQuals = editJobForm.qualifications.filter((_, i) => i !== index);
+                                  setEditJobForm(prev => ({ ...prev, qualifications: newQuals }));
+                                }}
+                                className="px-4 py-2 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500/20 transition-colors"
+                              >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
+                          ))}
+                          <button
+                            onClick={() => setEditJobForm(prev => ({ ...prev, qualifications: [...prev.qualifications, ''] }))}
+                            className={`w-full h-11 border-2 border-dashed ${theme === 'dark' ? 'border-gray-600' : 'border-gray-300'} rounded-xl ${getTextClassName()} hover:border-[#00EA72] hover:bg-[#00EA72]/5 transition-all`}
+                          >
+                            + Add Qualification
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {editJobStep === 4 && (
+                    <div className="space-y-6">
+                      <h3 className={`text-xl font-bold ${getTextClassName()} mb-4`}>💼 Compensation & Location</h3>
+                      
+                      {/* Salary Information */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label className={`${getTextClassName()} mb-2 block font-medium text-sm`}>Salary</Label>
+                          <Input
+                            value={editJobForm.salary}
+                            onChange={(e) => setEditJobForm(prev => ({ ...prev, salary: e.target.value }))}
+                            className={`${getInputClassName()} h-12 rounded-xl`}
+                            placeholder="e.g., 60000"
+                          />
+                        </div>
+                        <div>
+                          <Label className={`${getTextClassName()} mb-2 block font-medium text-sm`}>Salary Frequency</Label>
+                          <select
+                            value={editJobForm.salaryFrequency}
+                            onChange={(e) => setEditJobForm(prev => ({ ...prev, salaryFrequency: e.target.value }))}
+                            className={`w-full h-12 ${getInputClassName()} border-2 ${theme === 'dark' ? 'border-gray-600' : 'border-gray-300'} rounded-xl px-4`}
+                          >
+                            <option value="hourly">Hourly</option>
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="yearly">Yearly</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Salary Range */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label className={`${getTextClassName()} mb-2 block font-medium text-sm`}>Salary Min</Label>
+                          <Input
+                            type="number"
+                            value={editJobForm.salaryMin}
+                            onChange={(e) => setEditJobForm(prev => ({ ...prev, salaryMin: e.target.value }))}
+                            className={`${getInputClassName()} h-12 rounded-xl`}
+                            placeholder="Minimum"
+                          />
+                        </div>
+                        <div>
+                          <Label className={`${getTextClassName()} mb-2 block font-medium text-sm`}>Salary Max</Label>
+                          <Input
+                            type="number"
+                            value={editJobForm.salaryMax}
+                            onChange={(e) => setEditJobForm(prev => ({ ...prev, salaryMax: e.target.value }))}
+                            className={`${getInputClassName()} h-12 rounded-xl`}
+                            placeholder="Maximum"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Work Location */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label className={`${getTextClassName()} mb-2 block font-medium text-sm`}>Work Location</Label>
+                          <select
+                            value={editJobForm.workLocation}
+                            onChange={(e) => setEditJobForm(prev => ({ ...prev, workLocation: e.target.value }))}
+                            className={`w-full h-12 ${getInputClassName()} border-2 ${theme === 'dark' ? 'border-gray-600' : 'border-gray-300'} rounded-xl px-4`}
+                          >
+                            <option value="">Select Location</option>
+                            <option value="on-site">On-site</option>
+                            <option value="remote">Remote</option>
+                            <option value="hybrid">Hybrid</option>
+                          </select>
+                        </div>
+                        <div>
+                          <Label className={`${getTextClassName()} mb-2 block font-medium text-sm`}>Number of Positions</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={editJobForm.numberOfPositions}
+                            onChange={(e) => setEditJobForm(prev => ({ ...prev, numberOfPositions: parseInt(e.target.value) || 1 }))}
+                            className={`${getInputClassName()} h-12 rounded-xl`}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Address Details */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label className={`${getTextClassName()} mb-2 block font-medium text-sm`}>City</Label>
+                          <Input
+                            value={editJobForm.city}
+                            onChange={(e) => setEditJobForm(prev => ({ ...prev, city: e.target.value }))}
+                            className={`${getInputClassName()} h-12 rounded-xl`}
+                            placeholder="e.g., Sydney"
+                          />
+                        </div>
+                        <div>
+                          <Label className={`${getTextClassName()} mb-2 block font-medium text-sm`}>State</Label>
+                          <Input
+                            value={editJobForm.state}
+                            onChange={(e) => setEditJobForm(prev => ({ ...prev, state: e.target.value }))}
+                            className={`${getInputClassName()} h-12 rounded-xl`}
+                            placeholder="e.g., NSW"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label className={`${getTextClassName()} mb-2 block font-medium text-sm`}>Postcode</Label>
+                          <Input
+                            value={editJobForm.postcode}
+                            onChange={(e) => setEditJobForm(prev => ({ ...prev, postcode: e.target.value }))}
+                            className={`${getInputClassName()} h-12 rounded-xl`}
+                            placeholder="e.g., 2000"
+                          />
+                        </div>
+                        <div>
+                          <Label className={`${getTextClassName()} mb-2 block font-medium text-sm`}>Country</Label>
+                          <Input
+                            value={editJobForm.country}
+                            onChange={(e) => setEditJobForm(prev => ({ ...prev, country: e.target.value }))}
+                            className={`${getInputClassName()} h-12 rounded-xl`}
+                            placeholder="e.g., Australia"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Full Address (for on-site) */}
+                      {editJobForm.workLocation === 'on-site' && (
+                        <div>
+                          <Label className={`${getTextClassName()} mb-2 block font-medium text-sm`}>Full Address</Label>
+                          <Input
+                            value={editJobForm.address}
+                            onChange={(e) => setEditJobForm(prev => ({ ...prev, address: e.target.value }))}
+                            className={`${getInputClassName()} h-12 rounded-xl`}
+                            placeholder="Full street address"
+                          />
+                        </div>
+                      )}
+
+                      {/* Deadlines */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label className={`${getTextClassName()} mb-2 block font-medium text-sm`}>Application Deadline</Label>
+                          <Input
+                            type="date"
+                            value={editJobForm.applicationDeadline}
+                            onChange={(e) => setEditJobForm(prev => ({ ...prev, applicationDeadline: e.target.value }))}
+                            className={`${getInputClassName()} h-12 rounded-xl`}
+                          />
+                        </div>
+                        <div>
+                          <Label className={`${getTextClassName()} mb-2 block font-medium text-sm`}>Closing Date</Label>
+                          <Input
+                            type="date"
+                            value={editJobForm.closingDate}
+                            onChange={(e) => setEditJobForm(prev => ({ ...prev, closingDate: e.target.value }))}
+                            className={`${getInputClassName()} h-12 rounded-xl`}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              </AnimatePresence>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 mt-8 pt-6 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}">
+                {editJobStep > 1 && (
+                  <Button
+                    onClick={() => setEditJobStep(editJobStep - 1)}
+                    disabled={saveLoading}
+                    variant="outline"
+                    className="h-12 px-6 rounded-xl font-medium"
+                  >
+                    ← Previous
+                  </Button>
+                )}
+                
+                <div className="flex-1" />
+                
+                {editJobStep < 4 ? (
+                  <Button
+                    onClick={() => setEditJobStep(editJobStep + 1)}
+                    disabled={saveLoading || (editJobStep === 1 && (!editJobForm.jobTitle || !editJobForm.employmentType || !editJobForm.industryType || !editJobForm.minimumExperience))}
+                    className="h-12 px-8 bg-[#00EA72] text-black hover:bg-[#00D66C] rounded-xl font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
+                  >
+                    Continue →
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleSaveEditJob}
+                    disabled={saveLoading || !editJobForm.jobTitle || !editJobForm.employmentType || !editJobForm.industryType || !editJobForm.minimumExperience}
+                    className="h-12 px-8 bg-[#00EA72] text-black hover:bg-[#00D66C] rounded-xl font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
+                  >
+                    {saveLoading ? (
+                      <span className="flex items-center gap-2">
+                        <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Saving...
+                      </span>
+                    ) : (
+                      '✓ Save Changes'
+                    )}
+                  </Button>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Delete Job Modal */}
       <AnimatePresence>

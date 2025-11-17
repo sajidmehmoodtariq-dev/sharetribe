@@ -8,7 +8,9 @@ const {
   sendMessage,
   markAsRead,
   deleteChat,
-  acceptChat
+  acceptChat,
+  closeChat,
+  reopenChat
 } = require('../controllers/chatController');
 
 // Get all chats for logged-in user
@@ -28,6 +30,12 @@ router.put('/:chatId/read', protect, markAsRead);
 
 // Accept a chat request (employer only)
 router.post('/:chatId/accept', protect, acceptChat);
+
+// Close a chat (employer only)
+router.post('/:chatId/close', protect, closeChat);
+
+// Reopen a chat (employer only)
+router.post('/:chatId/reopen', protect, reopenChat);
 
 // Delete a chat
 router.delete('/:chatId', protect, deleteChat);

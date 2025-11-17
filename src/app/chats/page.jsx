@@ -2,17 +2,21 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTheme } from '@/components/ThemeProvider';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
 
 export default function ChatsPage() {
+  const { theme, getBackgroundStyle, getCardClassName, getTextClassName, getSubTextClassName } = useTheme();
   const [user, setUser] = useState(null);
   const [chats, setChats] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [showChatList, setShowChatList] = useState(true);
   const messagesEndRef = useRef(null);
+  const pollingIntervalRef = useRef(null);
   const router = useRouter();
 
   const scrollToBottom = () => {
@@ -28,6 +32,18 @@ export default function ChatsPage() {
 
     fetchUser();
     fetchChats();
+
+    // Start polling for new messages every 2 seconds
+    pollingIntervalRef.current = setInterval(() => {
+      fetchChats(true); // Silent fetch without loading state
+    }, 2000);
+
+    // Cleanup on unmount
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
   }, []);
 
   // Handle chatId or jobId from URL query params
@@ -72,7 +88,7 @@ export default function ChatsPage() {
     }
   };
 
-  const fetchChats = async () => {
+  const fetchChats = async (silent = false) => {
     try {
       const token = localStorage.getItem('token');
       
@@ -93,16 +109,27 @@ export default function ChatsPage() {
       if (response.ok) {
         const data = await response.json();
         setChats(data.chats);
+        
+        // Update selected chat if it exists
+        if (selectedChat && data.chats) {
+          const updatedSelectedChat = data.chats.find(c => c._id === selectedChat._id);
+          if (updatedSelectedChat) {
+            setSelectedChat(updatedSelectedChat);
+          }
+        }
       }
     } catch (error) {
       console.error('Error fetching chats:', error);
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
   const selectChat = async (chat) => {
     setSelectedChat(chat);
+    setShowChatList(false); // Hide chat list on mobile
     
     // Mark messages as read
     try {
@@ -225,6 +252,60 @@ export default function ChatsPage() {
     }
   };
 
+  const closeChat = async (chatId) => {
+    if (!confirm('Are you sure you want to close this conversation? The applicant will not be able to send messages anymore.')) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${BACKEND_URL}/api/chats/${chatId}/close`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Update the chat in list
+        setChats(prevChats =>
+          prevChats.map(c => c._id === chatId ? data.chat : c)
+        );
+        // Update selected chat if it's the one being closed
+        if (selectedChat?._id === chatId) {
+          setSelectedChat(data.chat);
+        }
+        alert('Chat closed successfully');
+      }
+    } catch (error) {
+      console.error('Error closing chat:', error);
+      alert('Failed to close chat');
+    }
+  };
+
+  const reopenChat = async (chatId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${BACKEND_URL}/api/chats/${chatId}/reopen`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Update the chat in list
+        setChats(prevChats =>
+          prevChats.map(c => c._id === chatId ? data.chat : c)
+        );
+        // Update selected chat if it's the one being reopened
+        if (selectedChat?._id === chatId) {
+          setSelectedChat(data.chat);
+        }
+        alert('Chat reopened successfully');
+      }
+    } catch (error) {
+      console.error('Error reopening chat:', error);
+      alert('Failed to reopen chat');
+    }
+  };
+
   const formatTime = (timestamp) => {
     const date = new Date(timestamp);
     const now = new Date();
@@ -263,155 +344,251 @@ export default function ChatsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
-        <div className="text-xl text-gray-600 dark:text-gray-300">Loading chats...</div>
+      <div className="min-h-screen flex items-center justify-center" style={getBackgroundStyle()}>
+        <div className="text-xl" style={{ color: theme === 'dark' ? '#fff' : '#000' }}>Loading chats...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Messages</h1>
+    <div className="min-h-screen" style={getBackgroundStyle()}>
+      <div className="container mx-auto px-4 py-6 max-w-7xl">
+        {/* Mobile back button when chat is open */}
+        {!showChatList && selectedChat && (
           <button
-            onClick={() => router.push('/home')}
-            className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+            onClick={() => {
+              setShowChatList(true);
+              setSelectedChat(null);
+            }}
+            className="md:hidden mb-4 flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:underline"
           >
-            Back to Home
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Back to chats
           </button>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
+        )}
+        
+        <div className={`${getCardClassName()} rounded-3xl shadow-xl overflow-hidden`} style={{ height: 'calc(100vh - 140px)' }}>
           <div className="flex h-full">
-            {/* Chat List */}
-            <div className="w-1/3 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
-              {chats.length === 0 ? (
-                <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-                  <svg
-                    className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+            {/* Chat List - Hidden on mobile when chat is selected */}
+            <div className={`${showChatList ? 'flex' : 'hidden'} md:flex w-full md:w-[420px] border-r ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} flex-col`}>
+              {/* Header */}
+              <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
+                <div className="flex items-center justify-between mb-6">
+                  <h1 className={`text-2xl font-bold ${getTextClassName()}`}>Messages</h1>
+                  <button
+                    onClick={() => router.push('/home')}
+                    className={`p-2 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'} transition-colors`}
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                    />
-                  </svg>
-                  <p>No conversations yet</p>
-                  <p className="text-sm mt-2">
-                    {user?.role === 'jobSeeker'
-                      ? 'Start a conversation by applying to a job'
-                      : 'Wait for job seekers to message you'}
-                  </p>
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
                 </div>
-              ) : (
-                chats.map((chat) => {
-                  const otherUser = getOtherUser(chat);
-                  const unreadCount = getUnreadCount(chat);
-                  const isSelected = selectedChat?._id === chat._id;
 
-                  return (
-                    <div
-                      key={chat._id}
-                      onClick={() => selectChat(chat)}
-                      className={`p-4 border-b border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
-                        isSelected ? 'bg-blue-50 dark:bg-gray-700' : ''
-                      }`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold text-gray-900 dark:text-white truncate">
-                              {otherUser?.fullName || otherUser?.name || 'Unknown User'}
-                            </h3>
-                            {unreadCount > 0 && (
-                              <span className="bg-blue-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                                {unreadCount}
-                              </span>
-                            )}
+                {/* Active Users Preview */}
+                {chats.length > 0 && (
+                  <div className="flex items-center gap-2 mb-4">
+                    {chats.slice(0, 3).map((chat) => {
+                      const otherUser = getOtherUser(chat);
+                      return (
+                        <div key={chat._id} className="relative">
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold ${theme === 'dark' ? 'bg-gray-600' : 'bg-gray-500'}`}>
+                            {(otherUser?.fullName || otherUser?.name || 'U').charAt(0).toUpperCase()}
                           </div>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
-                            {chat.jobId?.jobDetails?.jobTitle || 'Job Title'}
-                          </p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <p className="text-sm text-gray-500 dark:text-gray-500 truncate flex-1">
-                              {chat.lastMessage || 'No messages yet'}
-                            </p>
-                            {user?.role === 'employer' && !chat.acceptedByEmployer && (
-                              <span className="text-xs bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 px-2 py-0.5 rounded-full whitespace-nowrap">
-                                Pending
-                              </span>
-                            )}
-                            {chat.acceptedByEmployer && (
-                              <span className="text-xs text-green-600 dark:text-green-400 whitespace-nowrap">
-                                ✓
-                              </span>
-                            )}
-                          </div>
+                          <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
                         </div>
-                        <span className="text-xs text-gray-400 dark:text-gray-500 ml-2">
-                          {formatTime(chat.lastMessageTime)}
-                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Filter Tabs */}
+                <div className={`flex gap-4 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
+                  <button className={`pb-3 px-1 border-b-2 border-[#00EA72] ${getTextClassName()} font-semibold text-sm`}>
+                    All
+                  </button>
+                  <button className={`pb-3 px-1 ${getSubTextClassName()} font-semibold text-sm hover:${getTextClassName()}`}>
+                    Unread
+                  </button>
+                </div>
+              </div>
+
+              {/* Chat List Items */}
+              <div className="flex-1 overflow-y-auto">
+                {chats.length === 0 ? (
+                  <div className={`p-8 text-center ${getSubTextClassName()}`}>
+                    <svg
+                      className={`mx-auto h-12 w-12 mb-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                      />
+                    </svg>
+                    <p>No conversations yet</p>
+                    <p className="text-sm mt-2">
+                      {user?.role === 'jobSeeker'
+                        ? 'Start a conversation by applying to a job'
+                        : 'Wait for job seekers to message you'}
+                    </p>
+                  </div>
+                ) : (
+                  chats.map((chat) => {
+                    const otherUser = getOtherUser(chat);
+                    const unreadCount = getUnreadCount(chat);
+                    const isSelected = selectedChat?._id === chat._id;
+                    const isTyping = false;
+
+                    return (
+                      <div
+                        key={chat._id}
+                        onClick={() => selectChat(chat)}
+                        className={`px-6 py-4 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-100'} cursor-pointer transition-colors ${
+                          isSelected 
+                            ? theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-50' 
+                            : theme === 'dark' ? 'hover:bg-gray-700/50' : 'hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          {/* Avatar */}
+                          <div className="relative shrink-0">
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold ${theme === 'dark' ? 'bg-gray-600' : 'bg-gray-500'}`}>
+                              {(otherUser?.fullName || otherUser?.name || 'U').charAt(0).toUpperCase()}
+                            </div>
+                            <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                          </div>
+
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1">
+                              <h3 className={`font-semibold ${getTextClassName()} truncate`}>
+                                {otherUser?.fullName || otherUser?.name || 'Unknown User'}
+                              </h3>
+                              <span className={`text-xs ${getSubTextClassName()} ml-2 shrink-0`}>
+                                {formatTime(chat.lastMessageTime)}
+                              </span>
+                            </div>
+                            <p className={`text-sm truncate ${isTyping ? 'text-green-500 italic' : getSubTextClassName()}`}>
+                              {isTyping ? (
+                                `${otherUser?.fullName?.split(' ')[0] || 'User'} is typing...`
+                              ) : (
+                                chat.lastMessage || 'No messages yet'
+                              )}
+                            </p>
+                          </div>
+
+                          {/* Unread Badge */}
+                          {unreadCount > 0 && (
+                            <div className="shrink-0">
+                              <div className="w-5 h-5 bg-[#00EA72] rounded-full flex items-center justify-center text-white text-xs font-bold">
+                                {unreadCount}
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })
-              )}
+                    );
+                  })
+                )}
+              </div>
             </div>
 
-            {/* Chat Window */}
-            <div className="flex-1 flex flex-col">
+            {/* Chat Window - Hidden on mobile when chat list is shown */}
+            <div className={`${!showChatList ? 'flex' : 'hidden'} md:flex flex-1 flex-col`}>
               {selectedChat ? (
                 <>
                   {/* Chat Header */}
-                  <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                  <div className={`px-6 py-4 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
                     <div className="flex items-center justify-between">
-                      <div>
-                        <h2 className="font-semibold text-gray-900 dark:text-white">
-                          {getOtherUser(selectedChat)?.fullName || getOtherUser(selectedChat)?.name || 'Unknown User'}
-                        </h2>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          {selectedChat.jobId?.jobDetails?.jobTitle || 'Job Title'}
-                        </p>
-                        {selectedChat.acceptedByEmployer && (
-                          <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                            ✓ Request Accepted
+                      <div className="flex items-center gap-3">
+                        {/* Back button for mobile */}
+                        <button
+                          onClick={() => setShowChatList(true)}
+                          className="md:hidden p-2 -ml-2 text-blue-600 dark:text-blue-400"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                          </svg>
+                        </button>
+                        
+                        {/* Avatar */}
+                        <div className="relative">
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold ${theme === 'dark' ? 'bg-gray-600' : 'bg-gray-500'}`}>
+                            {(getOtherUser(selectedChat)?.fullName || getOtherUser(selectedChat)?.name || 'U').charAt(0).toUpperCase()}
+                          </div>
+                          <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                        </div>
+                        
+                        <div>
+                          <h2 className={`font-semibold ${getTextClassName()}`}>
+                            {getOtherUser(selectedChat)?.fullName || getOtherUser(selectedChat)?.name || 'Unknown User'}
+                          </h2>
+                          <p className={`text-sm ${getSubTextClassName()}`}>
+                            {selectedChat.jobId?.jobDetails?.jobTitle || 'Job Title'}
                           </p>
-                        )}
+                        </div>
                       </div>
                       <div className="flex gap-2">
                         {user?.role === 'employer' && !selectedChat.acceptedByEmployer && (
                           <button
                             onClick={() => acceptChat(selectedChat._id)}
-                            className="px-3 py-1 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                            className="px-3 py-1.5 text-xs bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                           >
-                            Accept Request
+                            Accept
                           </button>
+                        )}
+                        {user?.role === 'employer' && (
+                          selectedChat.closedByEmployer ? (
+                            <button
+                              onClick={() => reopenChat(selectedChat._id)}
+                              className="px-3 py-1.5 text-xs bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-1"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                              </svg>
+                              <span className="hidden sm:inline">Reopen</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => closeChat(selectedChat._id)}
+                              className="px-3 py-1.5 text-xs bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors flex items-center gap-1"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                              </svg>
+                              <span className="hidden sm:inline">End</span>
+                            </button>
+                          )
                         )}
                         <button
                           onClick={() => router.push(`/job/${selectedChat.jobId._id}`)}
-                          className="px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                          className="hidden sm:block px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                         >
                           View Job
                         </button>
                         <button
                           onClick={() => deleteChat(selectedChat._id)}
-                          className="px-3 py-1 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                          className={`p-1.5 rounded-lg transition-colors ${theme === 'dark' ? 'text-red-400 hover:bg-red-900/20' : 'text-red-600 hover:bg-red-50'}`}
                         >
-                          Delete
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
                         </button>
                       </div>
                     </div>
                   </div>
 
                   {/* Messages */}
-                  <div className="flex-1 overflow-y-auto p-4 bg-gray-50 dark:bg-gray-900">
+                  <div className={`flex-1 overflow-y-auto p-6 ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
                     {selectedChat.messages.length === 0 ? (
-                      <div className="text-center text-gray-500 dark:text-gray-400 mt-8">
+                      <div className={`text-center ${getSubTextClassName()} mt-8`}>
                         No messages yet. Start the conversation!
                       </div>
                     ) : (
@@ -423,16 +600,18 @@ export default function ChatsPage() {
                             className={`mb-4 flex ${isOwn ? 'justify-end' : 'justify-start'}`}
                           >
                             <div
-                              className={`max-w-[70%] rounded-2xl px-4 py-2 ${
+                              className={`max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-3 ${
                                 isOwn
-                                  ? 'bg-blue-600 text-white'
-                                  : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
+                                  ? 'bg-blue-600 text-white rounded-br-sm'
+                                  : theme === 'dark' 
+                                    ? 'bg-gray-800 text-white rounded-bl-sm shadow-sm'
+                                    : 'bg-white text-gray-900 rounded-bl-sm shadow-sm'
                               }`}
                             >
-                              <p className="break-words">{msg.message}</p>
+                              <p className="text-sm leading-relaxed">{msg.message}</p>
                               <span
-                                className={`text-xs mt-1 block ${
-                                  isOwn ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'
+                                className={`text-xs mt-1.5 block ${
+                                  isOwn ? 'text-blue-100' : theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
                                 }`}
                               >
                                 {formatTime(msg.timestamp)}
@@ -446,20 +625,44 @@ export default function ChatsPage() {
                   </div>
 
                   {/* Message Input */}
-                  <form onSubmit={sendMessage} className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-                    <div className="flex gap-2">
+                  <form onSubmit={sendMessage} className={`p-4 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
+                    {selectedChat.closedByEmployer && user?.role !== 'employer' && (
+                      <div className={`mb-3 p-3 rounded-xl border ${theme === 'dark' ? 'bg-red-900/20 border-red-800 text-red-400' : 'bg-red-50 border-red-200 text-red-800'}`}>
+                        <p className="text-sm flex items-center gap-2">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                          </svg>
+                          This conversation has been closed by the employer.
+                        </p>
+                      </div>
+                    )}
+                    {selectedChat.closedByEmployer && user?.role === 'employer' && (
+                      <div className={`mb-3 p-3 rounded-xl border ${theme === 'dark' ? 'bg-orange-900/20 border-orange-800 text-orange-400' : 'bg-orange-50 border-orange-200 text-orange-800'}`}>
+                        <p className="text-sm flex items-center gap-2">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Chat closed. Only you can send messages.
+                        </p>
+                      </div>
+                    )}
+                    <div className="flex gap-3">
                       <input
                         type="text"
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
-                        placeholder="Type a message..."
-                        className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                        disabled={sending}
+                        placeholder={selectedChat.closedByEmployer && user?.role !== 'employer' ? 'Chat is closed' : 'Type a message...'}
+                        className={`flex-1 px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed ${
+                          theme === 'dark' 
+                            ? 'border-gray-600 bg-gray-700 text-white' 
+                            : 'border-gray-300 bg-white text-gray-900'
+                        }`}
+                        disabled={sending || (selectedChat.closedByEmployer && user?.role !== 'employer')}
                       />
                       <button
                         type="submit"
-                        disabled={!message.trim() || sending}
-                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={!message.trim() || sending || (selectedChat.closedByEmployer && user?.role !== 'employer')}
+                        className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
                       >
                         {sending ? 'Sending...' : 'Send'}
                       </button>
@@ -467,10 +670,10 @@ export default function ChatsPage() {
                   </form>
                 </>
               ) : (
-                <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
-                  <div className="text-center">
+                <div className={`flex-1 flex items-center justify-center ${getSubTextClassName()}`}>
+                  <div className="text-center p-8">
                     <svg
-                      className="mx-auto h-16 w-16 text-gray-400 dark:text-gray-500 mb-4"
+                      className={`mx-auto h-16 w-16 mb-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -482,7 +685,8 @@ export default function ChatsPage() {
                         d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
                       />
                     </svg>
-                    <p>Select a conversation to start messaging</p>
+                    <p className="hidden md:block">Select a conversation to start messaging</p>
+                    <p className="md:hidden">Tap on a conversation to view messages</p>
                   </div>
                 </div>
               )}
