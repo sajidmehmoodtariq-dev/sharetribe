@@ -44,10 +44,10 @@ exports.createJob = async (req, res) => {
 exports.saveJobDetails = async (req, res) => {
   try {
     const { jobId } = req.params;
-    const { jobTitle, employmentType, shiftPreference, workersRights, minimumExperience } = req.body;
+    const { jobTitle, employmentType, industryType, minimumExperience } = req.body;
 
     // Validate required fields
-    if (!jobTitle || !employmentType || !shiftPreference || workersRights === undefined || !minimumExperience) {
+    if (!jobTitle || !employmentType || !industryType || !minimumExperience) {
       return res.status(400).json({ error: 'All job details fields are required' });
     }
 
@@ -60,8 +60,7 @@ exports.saveJobDetails = async (req, res) => {
     job.jobDetails = {
       jobTitle,
       employmentType,
-      shiftPreference,
-      workersRights,
+      industryType,
       minimumExperience
     };
 

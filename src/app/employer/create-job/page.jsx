@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import styles from './page.module.css';
+import { motion } from 'framer-motion';
 
 export default function CreateJob() {
   const router = useRouter();
@@ -93,61 +94,103 @@ export default function CreateJob() {
   }
 
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <h1>Create a New Job Posting</h1>
-        <p>Post a job and find the perfect candidate for your team</p>
-      </div>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+      className="min-h-screen bg-white p-6"
+    >
+      <motion.div
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.2 }}
+        className="text-center mb-8"
+      >
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Create a New Job Posting</h1>
+        <p className="text-gray-600">Post a job and find the perfect candidate for your team</p>
+      </motion.div>
 
-      <div className={styles.content}>
-        <div className={styles.card}>
-          <div className={styles.icon}>📋</div>
-          <h2>Get Started</h2>
-          <p>Follow our simple 4-step process to create and publish your job posting:</p>
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.3 }}
+        className="max-w-2xl mx-auto"
+      >
+        <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.4, type: "spring", stiffness: 200 }}
+            className="text-5xl text-center mb-6"
+          >
+            📋
+          </motion.div>
+          <motion.h2
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            className="text-xl font-bold text-gray-900 text-center mb-2"
+          >
+            Get Started
+          </motion.h2>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6 }}
+            className="text-gray-600 text-center mb-6"
+          >
+            Follow our simple 4-step process:
+          </motion.p>
 
-          <div className={styles.steps}>
-            <div className={styles.step}>
-              <div className={styles.stepNumber}>1</div>
-              <div className={styles.stepInfo}>
-                <h3>Job Details</h3>
-                <p>Provide basic job information like title, employment type, and experience level</p>
-              </div>
-            </div>
-
-            <div className={styles.step}>
-              <div className={styles.stepNumber}>2</div>
-              <div className={styles.stepInfo}>
-                <h3>Job Summary</h3>
-                <p>Write a detailed description of the job role and responsibilities</p>
-              </div>
-            </div>
-
-            <div className={styles.step}>
-              <div className={styles.stepNumber}>3</div>
-              <div className={styles.stepInfo}>
-                <h3>Qualifications</h3>
-                <p>Add the qualifications and skills required for this position</p>
-              </div>
-            </div>
-
-            <div className={styles.step}>
-              <div className={styles.stepNumber}>4</div>
-              <div className={styles.stepInfo}>
-                <h3>Post Job</h3>
-                <p>Set salary, location, deadline, and publish your job posting</p>
-              </div>
-            </div>
+          <div className="space-y-3 mb-6">
+            {[
+              { num: 1, title: 'Job Details', desc: 'Basic job information' },
+              { num: 2, title: 'Job Summary', desc: 'Description and responsibilities' },
+              { num: 3, title: 'Qualifications', desc: 'Skills required (Optional)' },
+              { num: 4, title: 'Post Job', desc: 'Salary, location, and publish' }
+            ].map((step, index) => (
+              <motion.div
+                key={step.num}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.7 + index * 0.08 }}
+                whileHover={{ scale: 1.01, x: 3 }}
+                className="flex gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200 hover:border-[#00EA72] transition-all"
+              >
+                <div className="w-8 h-8 bg-[#00EA72] text-white rounded-full flex items-center justify-center font-bold text-sm shrink-0">
+                  {step.num}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-gray-900 text-sm mb-0.5">{step.title}</h3>
+                  <p className="text-gray-600 text-xs">{step.desc}</p>
+                </div>
+              </motion.div>
+            ))}
           </div>
 
-          <button onClick={handleCreateJob} className={styles.primaryButton}>
-            Start Creating Job ➜
-          </button>
+          <motion.button
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1.0 }}
+            whileHover={{ scale: 1.02, y: -2 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={handleCreateJob}
+            className="w-full py-3 bg-[#00EA72] hover:bg-[#00D66C] text-black font-semibold rounded-full transition-all shadow-md hover:shadow-lg mb-3"
+          >
+            Start Creating Job →
+          </motion.button>
 
-          <Link href="/employer/dashboard" className={styles.secondaryButton}>
-            Back to Dashboard
-          </Link>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1.1 }}
+          >
+            <Link href="/home" className="block w-full py-3 bg-white hover:bg-gray-50 border border-gray-300 text-gray-700 font-medium rounded-full transition-all text-center">
+              Back to Dashboard
+            </Link>
+          </motion.div>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

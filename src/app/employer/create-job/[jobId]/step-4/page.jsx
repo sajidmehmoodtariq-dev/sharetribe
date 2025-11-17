@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import styles from '../../page.module.css';
+import { motion } from 'framer-motion';
 
 export default function Step4PostJob() {
   const router = useRouter();
@@ -141,18 +142,43 @@ export default function Step4PostJob() {
   };
 
   return (
-    <div className={styles.container}>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className={styles.container}
+    >
       {/* Progress Bar */}
-      <div className={styles.progressBar}>
-        <div className={styles.progress} style={{ width: '100%' }}></div>
-      </div>
+      <motion.div
+        initial={{ scaleX: 0 }}
+        animate={{ scaleX: 1 }}
+        transition={{ duration: 0.5 }}
+        className={styles.progressBar}
+        style={{ transformOrigin: 'left' }}
+      >
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: '100%' }}
+          transition={{ duration: 0.8, delay: 0.2 }}
+          className={styles.progress}
+        ></motion.div>
+      </motion.div>
 
-      <div className={styles.stepHeader}>
+      <motion.div
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.3 }}
+        className={styles.stepHeader}
+      >
         <h1>Step 4: Post Job</h1>
         <p>Set salary, location, and other posting details</p>
-      </div>
+      </motion.div>
 
-      <div className={styles.stepContainer}>
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.4 }}
+        className={styles.stepContainer}
+      >
         <form onSubmit={handleSubmit}>
           {error && <div className={styles.errorMessage}>{error}</div>}
 
@@ -363,33 +389,47 @@ export default function Step4PostJob() {
           </fieldset>
 
           {/* Buttons */}
-          <div className={styles.buttonGroup}>
-            <button
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className={styles.buttonGroup}
+          >
+            <motion.button
+              whileHover={{ scale: 1.02, x: -3 }}
+              whileTap={{ scale: 0.98 }}
               type="button"
               onClick={handlePrevious}
               className={styles.secondaryButton}
               disabled={loading}
             >
               ← Back to Step 3
-            </button>
-            <button
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.02, y: -2 }}
+              whileTap={{ scale: 0.98 }}
               type="submit"
               disabled={loading}
               className={styles.primaryButton}
             >
               {loading ? 'Publishing...' : (publish ? '✓ Publish Job' : '💾 Save as Draft')}
-            </button>
-          </div>
+            </motion.button>
+          </motion.div>
         </form>
-      </div>
+      </motion.div>
 
       {/* Step Indicator */}
-      <div className={styles.stepIndicator}>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.6 }}
+        className={styles.stepIndicator}
+      >
         <span className={styles.inactiveStep}>1. Job Details</span>
         <span className={styles.inactiveStep}>2. Job Summary</span>
         <span className={styles.inactiveStep}>3. Qualifications</span>
         <span className={styles.activeStep}>4. Post Job</span>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

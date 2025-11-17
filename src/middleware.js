@@ -24,8 +24,9 @@ export function middleware(request) {
   ];
   const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
 
-  // Protected routes
-  const protectedRoutes = ['/home', '/dashboard'];
+  // Protected routes - removed for now since we're using localStorage for tokens
+  // The home page will handle the redirect if user is not authenticated
+  const protectedRoutes = [];
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
 
   // If trying to access protected route without token
@@ -33,8 +34,8 @@ export function middleware(request) {
     return NextResponse.redirect(new URL('/login/role-selection', request.url));
   }
 
-  // If logged in and trying to access login/signup, redirect to home
-  if (token && (pathname === '/login' || pathname === '/signup' || pathname === '/')) {
+  // Don't redirect if user has token in cookies and accessing login pages
+  if (token && (pathname.startsWith('/login') || pathname.startsWith('/signup'))) {
     return NextResponse.redirect(new URL('/home', request.url));
   }
 

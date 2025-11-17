@@ -5,6 +5,8 @@ const nextConfig = {
   /* config options here */
   // Add empty turbopack config to silence the warning
   turbopack: {},
+  // Allow dev origins for mobile device testing
+  allowedDevOrigins: ['192.168.100.215'],
 };
 
 export default withPWA({

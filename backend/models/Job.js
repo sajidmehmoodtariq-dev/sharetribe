@@ -12,14 +12,10 @@ const jobDetailsSchema = new mongoose.Schema({
     enum: ['full-time', 'part-time', 'casual', 'contract'],
     required: [true, 'Employment type is required']
   },
-  shiftPreference: {
+  industryType: {
     type: String,
-    enum: ['morning', 'afternoon', 'evening'],
-    required: [true, 'Shift preference is required']
-  },
-  workersRights: {
-    type: Boolean,
-    required: [true, 'Workers rights must be specified']
+    required: [true, 'Industry type is required'],
+    trim: true
   },
   minimumExperience: {
     type: String,

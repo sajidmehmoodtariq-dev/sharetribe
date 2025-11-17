@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useTheme } from '@/components/ThemeProvider';
 import Image from 'next/image';
 import { Bell, User, Menu, Calendar, MessageCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function HomePage() {
   const { theme, getBackgroundStyle, getCardClassName, getTextClassName, getSubTextClassName, getInputClassName } = useTheme();
@@ -50,6 +51,8 @@ export default function HomePage() {
   });
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [jobToDelete, setJobToDelete] = useState(null);
 
   // Fetch user data on mount
   useEffect(() => {
@@ -381,8 +384,8 @@ export default function HomePage() {
 
   // Conditional tabs based on user role
   const tabs = user?.role === 'employer' 
-    ? ['My Jobs', 'All Jobs', 'Networks', 'Corporate']
-    : ['Search Jobs', 'My Applications', 'Saved Jobs', 'Networks', 'Corporate'];
+    ? ['My Jobs', 'Networks']
+    : ['Search Jobs', 'My Applications', 'Saved Jobs'];
 
   const networkConnections = [
     {
@@ -556,13 +559,16 @@ export default function HomePage() {
   };
 
   const handleDeleteJob = async (jobId) => {
-    if (!confirm('Are you sure you want to delete this job? This action cannot be undone.')) {
-      return;
-    }
+    setJobToDelete(jobId);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteJob = async () => {
+    if (!jobToDelete) return;
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/jobs/${jobId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/jobs/${jobToDelete}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -576,7 +582,8 @@ export default function HomePage() {
 
       // Refresh the jobs list
       await fetchMyJobs();
-      alert('Job deleted successfully!');
+      setShowDeleteModal(false);
+      setJobToDelete(null);
     } catch (error) {
       console.error('Error deleting job:', error);
       alert(error.message || 'Failed to delete job. Please try again.');
@@ -684,9 +691,17 @@ export default function HomePage() {
         {/* Main Content */}
         <div className="flex-1 px-2">
           <div className={`${getCardClassName()} rounded-3xl px-4 py-6 shadow-sm w-[97%] mx-auto`}>
+            <AnimatePresence mode="wait">
             {showLiveChat ? (
               /* Live Chat Page */
-              <div className="space-y-4">
+              <motion.div
+                key="live-chat"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-4"
+              >
                 {/* Header */}
                 <div className="flex items-center justify-between">
                   <h2 className={`text-lg font-semibold ${getTextClassName()}`}>Messages</h2>
@@ -747,10 +762,17 @@ export default function HomePage() {
                     </div>
                   ))}
                 </div>
-              </div>
+              </motion.div>
             ) : showSettings ? (
               /* Settings/Drop Down Page */
-              <div className="space-y-6">
+              <motion.div
+                key="settings"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-6"
+              >
                 {/* Header */}
                 <div className="flex items-center justify-between">
                   <h2 className={`text-lg font-semibold ${getTextClassName()}`}>Settings</h2>
@@ -763,8 +785,18 @@ export default function HomePage() {
                 </div>
 
                 {/* Menu Items */}
-                <div className="space-y-1">
-                  <button 
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.1 }}
+                  className="space-y-1"
+                >
+                  <motion.button 
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.15 }}
+                    whileHover={{ scale: 1.02, x: 5 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={() => {
                       setShowSettings(false);
                       setShowProfile(true);
@@ -772,9 +804,14 @@ export default function HomePage() {
                     className={`w-full text-left p-4 rounded-lg hover:bg-gray-50 ${getTextClassName()}`}
                   >
                     My Profile Card
-                  </button>
+                  </motion.button>
                   
-                  <button 
+                  <motion.button 
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.2 }}
+                    whileHover={{ scale: 1.02, x: 5 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={() => {
                       setShowSettings(false);
                       setShowMyNetwork(true);
@@ -782,9 +819,14 @@ export default function HomePage() {
                     className={`w-full text-left p-4 rounded-lg hover:bg-gray-50 ${getTextClassName()}`}
                   >
                     My Network
-                  </button>
+                  </motion.button>
                   
-                  <button 
+                  <motion.button 
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.25 }}
+                    whileHover={{ scale: 1.02, x: 5 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={() => {
                       setShowSettings(false);
                       setShowFavouriteJobs(true);
@@ -792,39 +834,75 @@ export default function HomePage() {
                     className={`w-full text-left p-4 rounded-lg hover:bg-gray-50 ${getTextClassName()}`}
                   >
                     Favourite Jobs
-                  </button>
+                  </motion.button>
                   
                   <div className={`border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} my-2`}></div>
                   
-                  <button 
+                  <motion.button 
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.3 }}
+                    whileHover={{ scale: 1.02, x: 5, backgroundColor: 'rgba(239, 68, 68, 0.1)' }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={handleSignOut}
                     className="w-full text-left p-4 rounded-lg hover:bg-gray-50 text-red-600"
                   >
                     Sign Out
-                  </button>
-                </div>
-              </div>
+                  </motion.button>
+                </motion.div>
+              </motion.div>
             ) : showProfile ? (
               /* Profile Card Content */
-              <div className="space-y-6">
+              <motion.div
+                key="profile"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.4 }}
+                className="space-y-6"
+              >
                 {/* Profile Header */}
-                <h2 className={`text-lg font-semibold ${getTextClassName()}`}>My Profile Card</h2>
+                <motion.h2 
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className={`text-lg font-semibold ${getTextClassName()}`}
+                >
+                  My Profile Card
+                </motion.h2>
 
                 {/* Profile Info */}
-                <div className="flex items-center justify-between">
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="flex items-center justify-between"
+                >
                   <div className="flex items-center space-x-3">
                     {user?.personalDetails?.profileImage ? (
-                      <img 
+                      <motion.img 
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ delay: 0.3, type: "spring", stiffness: 260, damping: 20 }}
                         src={user.personalDetails.profileImage} 
                         alt={user.fullName}
                         className="w-12 h-12 rounded-full object-cover"
                       />
                     ) : (
-                      <div className="w-12 h-12 bg-gray-800 rounded-full flex items-center justify-center">
+                      <motion.div 
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ delay: 0.3, type: "spring", stiffness: 260, damping: 20 }}
+                        className="w-12 h-12 bg-gray-800 rounded-full flex items-center justify-center"
+                      >
                         <User className="w-6 h-6 text-white" />
-                      </div>
+                      </motion.div>
                     )}
-                    <div>
+                    <motion.div
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.35 }}
+                    >
                       <h3 className={`font-semibold ${getTextClassName()}`}>{user?.fullName || 'User'}</h3>
                       <p className={`text-sm ${getSubTextClassName()}`}>
                         {user?.workExperience?.role || user?.workExperience?.currentJobTitle || 'Not specified'}
@@ -839,21 +917,39 @@ export default function HomePage() {
                           </svg>
                         ))}
                       </div>
-                    </div>
+                    </motion.div>
                   </div>
-                  <Button 
-                    onClick={() => setIsEditingProfile(true)}
-                    className="px-4 py-2 text-sm"
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.4 }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                   >
-                    Edit Profile
-                  </Button>
-                </div>
+                    <Button 
+                      onClick={() => setIsEditingProfile(true)}
+                      className="px-4 py-2 text-sm"
+                    >
+                      Edit Profile
+                    </Button>
+                  </motion.div>
+                </motion.div>
 
                 {/* Profile Tabs */}
-                <div className="flex space-x-6 border-b border-gray-200 overflow-x-auto">
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                  className="flex space-x-6 border-b border-gray-200 overflow-x-auto"
+                >
                   {['Profile', 'Favourite Jobs', 'Saved Projects', 'My Network'].map((tab, index) => (
-                    <button
+                    <motion.button
                       key={tab}
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.3 + (index * 0.05) }}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                       onClick={() => {
                         if (tab === 'Saved Projects') {
                           setShowProfile(false);
@@ -878,9 +974,9 @@ export default function HomePage() {
                       }`}
                     >
                       {tab}
-                    </button>
+                    </motion.button>
                   ))}
-                </div>
+                </motion.div>
 
                 {/* About Section */}
                 <div>
@@ -957,7 +1053,7 @@ export default function HomePage() {
                     )}
                   </div>
                 )}
-              </div>
+              </motion.div>
             ) : showSavedProjects ? (
               /* Saved Projects Content */
               <div className="space-y-6">
@@ -1211,211 +1307,25 @@ export default function HomePage() {
                     </div>
                   ))}
                 </div>
-
-                {/* Pagination */}
-                <div className="flex items-center justify-center space-x-2 pt-6">
-                  <button className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center text-gray-400">
-                    ←
-                  </button>
-                  <button className="w-8 h-8 rounded-full bg-[#00EA72] text-white flex items-center justify-center font-medium text-sm">
-                    1
-                  </button>
-                  <button className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center text-gray-600 text-sm">
-                    2
-                  </button>
-                  <button className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center text-gray-600 text-sm">
-                    3
-                  </button>
-                  <button className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center text-gray-600 text-sm">
-                    4
-                  </button>
-                  <button className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center text-gray-600 text-sm">
-                    5
-                  </button>
-                  <button className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center text-gray-600 text-sm">
-                    6
-                  </button>
-                  <button className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center text-gray-400">
-                    →
-                  </button>
-                </div>
-              </div>
-            ) : showMyNetwork ? (
-              /* My Network Content */
-              <div className="space-y-6">
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                  <h2 className={`text-lg font-semibold ${getTextClassName()}`}>My Network</h2>
-                </div>
-
-                {/* Tabs */}
-                <div className="flex space-x-6 border-b border-gray-200 overflow-x-auto">
-                  {['Profile', 'Favourite Jobs', 'Saved Projects', 'My Network'].map((tab, index) => (
-                    <button
-                      key={tab}
-                      onClick={() => {
-                        if (tab === 'Profile') {
-                          setShowMyNetwork(false);
-                          setShowFavouriteJobs(false);
-                          setShowSavedProjects(false);
-                          setShowProfile(true);
-                        } else if (tab === 'Favourite Jobs') {
-                          setShowMyNetwork(false);
-                          setShowProfile(false);
-                          setShowSavedProjects(false);
-                          setShowFavouriteJobs(true);
-                        } else if (tab === 'Saved Projects') {
-                          setShowMyNetwork(false);
-                          setShowProfile(false);
-                          setShowFavouriteJobs(false);
-                          setShowSavedProjects(true);
-                        }
-                      }}
-                      className={`pb-2 text-sm font-medium whitespace-nowrap ${
-                        index === 3 
-                          ? `${getTextClassName()} border-b-2 border-[#00EA72]` 
-                          : `${getSubTextClassName()}`
-                      }`}
-                    >
-                      {tab}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Search Connections */}
-                <div>
-                  <h3 className={`text-base font-semibold ${getTextClassName()} mb-4`}>Search Connections</h3>
-                  
-                  {/* Search Input */}
-                  <div className="relative mb-4">
-                    <Input
-                      value={connectionSearchQuery}
-                      onChange={(e) => setConnectionSearchQuery(e.target.value)}
-                      placeholder="Search connected users"
-                      className="h-12 rounded-full border-2 border-[#00EA72] text-[14px] pl-10 pr-4"
-                    />
-                    <svg className="absolute left-3 top-3 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                  </div>
-
-                  {/* Advanced Filters */}
-                  <div className="mb-6">
-                    <div className="flex items-center justify-between mb-3">
-                      <button 
-                        onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                        className={`text-[14px] font-medium ${getTextClassName()} flex items-center space-x-1`}
-                      >
-                        <span>Advanced Filters</span>
-                        <svg className={`w-3 h-3 transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </button>
-                      <button className={`text-[12px] ${getSubTextClassName()}`}>
-                        Reset all filters
-                      </button>
-                    </div>
-                    
-                    <p className={`text-[12px] ${getSubTextClassName()} mb-3`}>
-                      Narrow searches with these additional fields
-                    </p>
-
-                    {/* Filter Buttons */}
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      <button className="px-4 py-2 rounded-full border border-gray-300 text-gray-700 text-[12px] font-medium flex items-center space-x-1">
-                        <span>Industry Type</span>
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </button>
-                      <button className="px-4 py-2 rounded-full border border-gray-300 text-gray-700 text-[12px] font-medium flex items-center space-x-1">
-                        <span>Main Role</span>
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </button>
-                      <button className="px-4 py-2 rounded-full border border-gray-300 text-gray-700 text-[12px] font-medium flex items-center space-x-1">
-                        <span>Main Skills</span>
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </button>
-                      <button className="px-4 py-2 rounded-full border border-gray-300 text-gray-700 text-[12px] font-medium flex items-center space-x-1">
-                        <span>Employment Type</span>
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </button>
-                      <button className="px-4 py-2 rounded-full border border-gray-300 text-gray-700 text-[12px] font-medium flex items-center space-x-1">
-                        <span>Location</span>
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </button>
-                    </div>
-
-                    {/* Results Header */}
-                    <div className="flex items-center justify-between mb-4">
-                      <p className={`text-sm ${getTextClassName()}`}>120 connected users</p>
-                      <div className="flex items-center space-x-2">
-                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-                        </svg>
-                        <select 
-                          value={sortConnectionsBy}
-                          onChange={(e) => setSortConnectionsBy(e.target.value)}
-                          className="text-sm border border-gray-300 rounded px-2 py-1"
-                        >
-                          <option>Alphabetical</option>
-                          <option>Order (A-Z)</option>
-                          <option>Relevance</option>
-                          <option>Newest</option>
-                          <option>Oldest</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Network Connections List */}
-                    <div className="space-y-3">
-                      {networkConnections.map((connection) => (
-                        <div key={connection.id} className={`${getCardClassName()} rounded-lg p-4 shadow-sm border ${theme === 'dark' ? 'border-gray-700' : 'border-gray-100'} flex items-center justify-between`}>
-                          <div className="flex items-center space-x-3">
-                            <div className="relative">
-                              <div className="w-12 h-12 bg-gray-800 rounded-full flex items-center justify-center">
-                                <User className="w-6 h-6 text-white" />
-                              </div>
-                              {connection.isOnline && (
-                                <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
-                              )}
-                            </div>
-                            <div>
-                              <h4 className={`font-semibold text-[14px] ${getTextClassName()}`}>{connection.name}</h4>
-                              <p className={`text-[12px] ${getSubTextClassName()}`}>{connection.jobTitle}</p>
-                              <p className={`text-[11px] ${getSubTextClassName()}`}>{connection.location}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Button className={`${getCardClassName()} border ${theme === 'dark' ? 'border-gray-600 text-gray-300 hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-gray-50'} text-[11px] px-3 py-1 rounded-full`}>
-                              👁 View Profile
-                            </Button>
-                            <Button className={`${getCardClassName()} border ${theme === 'dark' ? 'border-gray-600 text-gray-300 hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-gray-50'} text-[11px] px-3 py-1 rounded-full`}>
-                              💬 Message
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
               </div>
             ) : (
               /* Original Job Search Content */
               <>
                 {/* Tabs */}
-                <div className={`flex space-x-4 mb-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} overflow-x-auto`}>
-                  {tabs.map((tab) => (
-                    <button
+                <motion.div 
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4 }}
+                  className={`flex space-x-4 mb-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} overflow-x-auto`}
+                >
+                  {tabs.map((tab, index) => (
+                    <motion.button
                       key={tab}
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: index * 0.1 }}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                       onClick={() => setActiveTab(tab)}
                       className={`pb-2 text-[14px] font-medium transition-colors relative whitespace-nowrap ${
                         activeTab === tab
@@ -1425,28 +1335,53 @@ export default function HomePage() {
                     >
                       {tab}
                       {activeTab === tab && (
-                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#00EA72]"></div>
+                        <motion.div 
+                          layoutId="activeTab"
+                          className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#00EA72]"
+                          transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                        />
                       )}
-                    </button>
+                    </motion.button>
                   ))}
-                </div>
+                </motion.div>
 
                 {activeTab === 'Networks' ? (
                   /* Networks Tab Content */
-                  <div className="space-y-6">
+                  <motion.div
+                    key="networks-tab"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.4 }}
+                    className="space-y-6"
+                  >
                     {/* Networks Greeting */}
-                    <h2 className={`text-[18px] font-bold ${getTextClassName()} mb-6`}>
+                    <motion.h2 
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.1 }}
+                      className={`text-[18px] font-bold ${getTextClassName()} mb-6`}
+                    >
                       My Network
-                    </h2>
+                    </motion.h2>
 
                     {/* Search Connections */}
-                    <div className="mb-6">
+                    <motion.div 
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 }}
+                      className="mb-6"
+                    >
                       <h3 className={`text-[16px] font-semibold ${getTextClassName()} mb-4`}>
                         Search Connections
                       </h3>
                       
                       {/* Search Input */}
-                      <div className="relative mb-4">
+                      <motion.div 
+                        className="relative mb-4"
+                        whileHover={{ scale: 1.01 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                      >
                         <Input
                           value={connectionSearchQuery}
                           onChange={(e) => setConnectionSearchQuery(e.target.value)}
@@ -1456,7 +1391,7 @@ export default function HomePage() {
                         <svg className="absolute left-3 top-3 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
-                      </div>
+                      </motion.div>
 
                       {/* Advanced Filters */}
                       <div className="mb-6">
@@ -1480,38 +1415,29 @@ export default function HomePage() {
                         </p>
 
                         {/* Filter Buttons */}
-                        <div className="flex flex-wrap gap-2 mb-4">
-                          <button className="px-4 py-2 rounded-full border border-gray-300 text-gray-700 text-[12px] font-medium flex items-center space-x-1">
-                            <span>Industry Type</span>
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </button>
-                          <button className="px-4 py-2 rounded-full border border-gray-300 text-gray-700 text-[12px] font-medium flex items-center space-x-1">
-                            <span>Main Role</span>
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </button>
-                          <button className="px-4 py-2 rounded-full border border-gray-300 text-gray-700 text-[12px] font-medium flex items-center space-x-1">
-                            <span>Main Skills</span>
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </button>
-                          <button className="px-4 py-2 rounded-full border border-gray-300 text-gray-700 text-[12px] font-medium flex items-center space-x-1">
-                            <span>Employment Type</span>
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </button>
-                          <button className="px-4 py-2 rounded-full border border-gray-300 text-gray-700 text-[12px] font-medium flex items-center space-x-1">
-                            <span>Location</span>
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </button>
-                        </div>
+                        <motion.div 
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: 0.3 }}
+                          className="flex flex-wrap gap-2 mb-4"
+                        >
+                          {['Industry Type', 'Main Role', 'Main Skills', 'Employment Type', 'Location'].map((filter, index) => (
+                            <motion.button
+                              key={filter}
+                              initial={{ opacity: 0, scale: 0.8 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              transition={{ delay: 0.35 + (index * 0.05) }}
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              className="px-4 py-2 rounded-full border border-gray-300 text-gray-700 text-[12px] font-medium flex items-center space-x-1"
+                            >
+                              <span>{filter}</span>
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </motion.button>
+                          ))}
+                        </motion.div>
 
                         {/* Results Header with Grid Toggle */}
                         <div className="flex items-center justify-between mb-4">
@@ -1535,167 +1461,186 @@ export default function HomePage() {
                         </div>
 
                         {/* Network Connections Grid */}
-                        <div className="grid grid-cols-2 gap-4">
-                          {networkConnections.map((connection) => (
-                            <div key={connection.id} className={`${getCardClassName()} rounded-lg p-4 shadow-sm border ${theme === 'dark' ? 'border-gray-700' : 'border-gray-100'} text-center`}>
-                              <div className="relative mx-auto mb-3 w-12 h-12">
+                        <motion.div 
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: 0.4 }}
+                          className="grid grid-cols-2 gap-4"
+                        >
+                          {networkConnections.map((connection, index) => (
+                            <motion.div 
+                              key={connection.id} 
+                              initial={{ opacity: 0, scale: 0.9 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              transition={{ delay: 0.45 + (index * 0.05) }}
+                              whileHover={{ scale: 1.03, y: -5 }}
+                              className={`${getCardClassName()} rounded-lg p-4 shadow-sm border ${theme === 'dark' ? 'border-gray-700' : 'border-gray-100'} text-center`}
+                            >
+                              <motion.div 
+                                className="relative mx-auto mb-3 w-12 h-12"
+                                whileHover={{ scale: 1.1 }}
+                                transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                              >
                                 <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
                                   <User className="w-6 h-6 text-gray-400" />
                                 </div>
                                 {connection.isOnline && (
-                                  <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                                  <motion.div 
+                                    initial={{ scale: 0 }}
+                                    animate={{ scale: 1 }}
+                                    transition={{ delay: 0.5 + (index * 0.05), type: "spring" }}
+                                    className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"
+                                  />
                                 )}
-                              </div>
+                              </motion.div>
                               <h4 className={`font-semibold text-[14px] ${getTextClassName()} mb-1`}>{connection.name}</h4>
                               <p className={`text-[12px] ${getSubTextClassName()} mb-1`}>{connection.jobTitle}</p>
                               <p className={`text-[11px] ${getSubTextClassName()} mb-3`}>{connection.location}</p>
                               <div className="flex flex-col space-y-2">
-                                <Button className={`${getCardClassName()} border ${theme === 'dark' ? 'border-gray-600 text-gray-300 hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-gray-50'} text-[11px] px-3 py-1 rounded-full`}>
-                                  👁 View Profile
-                                </Button>
-                                <Button className={`${getCardClassName()} border ${theme === 'dark' ? 'border-gray-600 text-gray-300 hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-gray-50'} text-[11px] px-3 py-1 rounded-full`}>
-                                  💬 Message
-                                </Button>
+                                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                                  <Button className={`w-full ${getCardClassName()} border ${theme === 'dark' ? 'border-gray-600 text-gray-300 hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-gray-50'} text-[11px] px-3 py-1 rounded-full`}>
+                                    👁 View Profile
+                                  </Button>
+                                </motion.div>
+                                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                                  <Button className={`w-full ${getCardClassName()} border ${theme === 'dark' ? 'border-gray-600 text-gray-300 hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-gray-50'} text-[11px] px-3 py-1 rounded-full`}>
+                                    💬 Message
+                                  </Button>
+                                </motion.div>
                               </div>
-                            </div>
+                            </motion.div>
                           ))}
-                        </div>
+                        </motion.div>
                       </div>
-                    </div>
-                  </div>
+                    </motion.div>
+                  </motion.div>
                 ) : (
                   <>
-                    {/* Greeting and Create Job Button */}
-                    <div className="flex items-center justify-between mb-6">
+                    {/* Greeting */}
+                    <motion.div 
+                      initial={{ opacity: 0, y: -20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5 }}
+                      className="mb-6"
+                    >
                       <h2 className={`text-[18px] font-bold ${getTextClassName()}`}>
                         Good Morning, {user?.fullName || 'User'}
                       </h2>
-                      {user?.role === 'employer' && (
-                        <Button 
-                          onClick={() => {
-                            router.push('/employer/create-job');
-                          }}
-                          className="bg-[#00EA72] hover:bg-[#00D66C] text-black font-medium text-[13px] px-4 py-2 rounded-full"
-                        >
-                          + Create Job
-                        </Button>
-                      )}
-                    </div>
+                    </motion.div>
 
                     {/* Search Section */}
-                    <div className="mb-6">
-                  <h3 className={`text-[16px] font-semibold ${getTextClassName()} mb-4`}>
-                    {user?.role === 'employer' ? 'Search Workers' : 'Find jobs'}
-                  </h3>
-                  
-                  <div className="space-y-4">
-                    {/* Search Input */}
-                    <div className="relative">
-                      <Input
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder={user?.role === 'employer' ? 'Search for workers i.e. Concrete Finisher' : 'Search for jobs i.e. Concrete Finisher'}
-                        className={`${getInputClassName()} border-2 border-[#00EA72] text-[14px] pl-10 pr-4`}
-                      />
-                      <svg className="absolute left-3 top-3 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                      </svg>
-                    </div>
-
-                    {/* Location Input */}
-                    <div>
-                      <Label className={`text-[14px] font-medium ${getTextClassName()} mb-2 block`}>
-                        Where
-                      </Label>
-                      <div className="relative">
-                        <Input
-                          value={location}
-                          onChange={(e) => setLocation(e.target.value)}
-                          placeholder="Search Location"
-                          className="h-12 rounded-full border-gray-300 text-[14px] pr-10"
-                        />
-                        <svg className="absolute right-3 top-3 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1011.314 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                      </div>
-                    </div>
-
-                    {/* Advanced Filters */}
-                    <div>
-                      <div className="flex items-center justify-between mb-3">
-                        <button 
-                          onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                          className={`text-[14px] font-medium ${getTextClassName()} flex items-center space-x-1`}
-                        >
-                          <span>Advanced Filters</span>
-                          <svg className={`w-3 h-3 transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </button>
-                        <button className={`text-[12px] ${getSubTextClassName()} hover:${getTextClassName()}`}>
-                          Reset all filters
-                        </button>
-                      </div>
-                      
-                      <p className={`text-[12px] ${getSubTextClassName()} mb-3`}>
-                        Narrow searches with these additional fields
-                      </p>
-
-                      {/* Filter Buttons */}
-                      <div className="flex space-x-2 mb-4">
-                        <button 
-                          onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                          className="px-4 py-2 rounded-full bg-[#00EA72] text-white text-[12px] font-medium flex items-center space-x-1"
-                        >
-                          <span>Industry Type</span>
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </button>
-                        <button className="px-4 py-2 rounded-full border border-gray-300 text-gray-700 text-[12px] font-medium flex items-center space-x-1">
-                          <span>Main Skills</span>
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </button>
-                      </div>
-
-                      {/* Industry Options */}
-                      {showAdvancedFilters && (
-                        <div className="grid grid-cols-1 gap-2 mb-4 pl-3 border-l-2 border-gray-200">
-                          {industries.map((industry) => (
-                            <div key={industry} className="flex items-center space-x-2">
-                              <input
-                                type="radio"
-                                id={industry}
-                                name="industry"
-                                value={industry}
-                                checked={selectedIndustry === industry}
-                                onChange={(e) => setSelectedIndustry(e.target.value)}
-                                className="w-3 h-3 text-[#00EA72] border-gray-300 focus:ring-[#00EA72]"
-                              />
-                              <label 
-                                htmlFor={industry} 
-                                className={`text-[13px] ${getTextClassName()} cursor-pointer`}
-                              >
-                                {industry}
-                              </label>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Search Button */}
-                    <Button
-                      onClick={handleSearch}
-                      className="w-full h-12 bg-[#00EA72] hover:bg-[#00D66C] text-black font-medium text-[14px] rounded-full"
+                    <motion.div 
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5, delay: 0.1 }}
+                      className="mb-6"
                     >
-                      Search
-                    </Button>
-                  </div>
-                </div>
+                      <h3 className={`text-[16px] font-semibold ${getTextClassName()} mb-4`}>
+                        {user?.role === 'employer' ? 'Search Jobs' : 'Find jobs'}
+                      </h3>
+                      
+                      <div className="space-y-4">
+                        {/* Single Search Input */}
+                        <motion.div 
+                          className="relative"
+                          whileHover={{ scale: 1.01 }}
+                          transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                        >
+                          <Input
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder={user?.role === 'employer' ? 'Search for jobs by company name or job description' : 'Search for jobs by name, company, or description'}
+                            className={`h-14 ${getInputClassName()} border-2 border-[#00EA72] text-[14px] pl-12 pr-4 rounded-full`}
+                          />
+                          <svg className="absolute left-4 top-4 w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                          </svg>
+                        </motion.div>
+
+                        {/* Flattened Filter Options */}
+                        <AnimatePresence>
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.3, delay: 0.2 }}
+                            className="space-y-3"
+                          >
+                            <div className="flex items-center justify-between">
+                              <Label className={`text-[13px] font-medium ${getTextClassName()}`}>
+                                Filter by Industry
+                              </Label>
+                              <button 
+                                onClick={() => setSelectedIndustry('')}
+                                className={`text-[11px] ${getSubTextClassName()} hover:${getTextClassName()}`}
+                              >
+                                Reset
+                              </button>
+                            </div>
+                            
+                            <motion.div 
+                              className="flex flex-wrap gap-2"
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              transition={{ duration: 0.4, delay: 0.3 }}
+                            >
+                              {industries.map((industry, index) => (
+                                <motion.button
+                                  key={industry}
+                                  initial={{ opacity: 0, scale: 0.8 }}
+                                  animate={{ opacity: 1, scale: 1 }}
+                                  transition={{ duration: 0.3, delay: 0.3 + (index * 0.05) }}
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                  onClick={() => setSelectedIndustry(selectedIndustry === industry ? '' : industry)}
+                                  className={`px-4 py-2 rounded-full text-[12px] font-medium transition-all duration-200 ${
+                                    selectedIndustry === industry
+                                      ? 'bg-[#00EA72] text-black shadow-md'
+                                      : `border ${theme === 'dark' ? 'border-gray-600 text-gray-300 hover:border-[#00EA72]' : 'border-gray-300 text-gray-700 hover:border-[#00EA72]'}`
+                                  }`}
+                                >
+                                  {industry}
+                                </motion.button>
+                              ))}
+                            </motion.div>
+                          </motion.div>
+                        </AnimatePresence>
+
+                        {/* Search and Create Job Buttons */}
+                        <motion.div 
+                          className="flex gap-3"
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.5, delay: 0.5 }}
+                        >
+                          <motion.div
+                            className="flex-1"
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                          >
+                            <Button
+                              onClick={handleSearch}
+                              className="w-full h-12 bg-[#00EA72] hover:bg-[#00D66C] text-black font-medium text-[14px] rounded-full shadow-lg hover:shadow-xl transition-all duration-200"
+                            >
+                              Search
+                            </Button>
+                          </motion.div>
+                          {user?.role === 'employer' && (
+                            <motion.div
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                            >
+                              <Button 
+                                onClick={() => router.push('/employer/create-job')}
+                                className="h-12 bg-black hover:bg-gray-800 text-white font-medium text-[14px] px-6 rounded-full shadow-lg hover:shadow-xl transition-all duration-200"
+                              >
+                                + Create Job
+                              </Button>
+                            </motion.div>
+                          )}
+                        </motion.div>
+                      </div>
+                    </motion.div>
 
                 {/* Job Listing */}
                 <div className="space-y-4">
@@ -1790,27 +1735,34 @@ export default function HomePage() {
                       }
 
                       // Render jobs
-                      return displayJobs.map((job) => {
+                      return displayJobs.map((job, index) => {
                         // Handle application data structure (for My Applications tab)
                         const isApplication = job.jobId && job.applicantId;
                         const jobData = isApplication ? job.jobId : job;
                         const jobId = jobData._id || jobData.id || job._id;
                         
                         return (
-                        <div key={jobId} className={`border rounded-3xl p-4 ${getCardClassName()} shadow-sm ${theme === 'dark' ? 'border-gray-700' : 'border-gray-300'}`}>
+                        <motion.div 
+                          key={jobId} 
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.4, delay: index * 0.05 }}
+                          whileHover={{ scale: 1.02, boxShadow: '0 10px 30px rgba(0, 234, 114, 0.15)' }}
+                          className={`border rounded-3xl p-4 ${getCardClassName()} shadow-sm ${theme === 'dark' ? 'border-gray-700' : 'border-gray-300'} cursor-pointer`}
+                        >
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-start space-x-3">
                           <div className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center shrink-0">
                             <span className="text-[12px] font-bold text-white">
-                              {(jobData.businessName || jobData.company || 'Company').charAt(0).toUpperCase()}
+                              {(jobData.jobDetails?.businessName || jobData.businessName || jobData.company || 'Company').charAt(0).toUpperCase()}
                             </span>
                           </div>
                           <div className="flex-1 min-w-0">
                             <h4 className={`font-semibold text-[14px] ${getTextClassName()} mb-1 truncate`}>
-                              {jobData.jobTitle || jobData.title}
+                              {jobData.jobDetails?.jobTitle || jobData.jobTitle || jobData.title || 'Job Title'}
                             </h4>
                             <p className={`text-[12px] ${getSubTextClassName()} mb-1 truncate`}>
-                              {jobData.businessName || jobData.company || 'Company Name'}
+                              {jobData.jobDetails?.businessName || jobData.businessName || jobData.company || 'Company Name'}
                             </p>
                             {/* Show application status for job seekers */}
                             {isApplication && job.status && (
@@ -1845,7 +1797,7 @@ export default function HomePage() {
                                 <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                                 </svg>
-                                <span className="truncate">{jobData.location || jobData.address || 'Remote'}</span>
+                                <span className="truncate">{jobData.postJob?.city || jobData.location || jobData.address || jobData.postJob?.workLocation || 'Remote'}</span>
                               </div>
                               {jobData.workSchedule && (
                                 <div className="flex items-center space-x-1">
@@ -1869,7 +1821,9 @@ export default function HomePage() {
                         <div className="flex items-center space-x-2 shrink-0">
                           {activeTab === 'My Jobs' && user?.role === 'employer' && !isApplication ? (
                             <>
-                              <button 
+                              <motion.button 
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
                                 onClick={() => router.push(`/chats?jobId=${jobId}`)}
                                 className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
                                 title="View Messages"
@@ -1877,8 +1831,10 @@ export default function HomePage() {
                                 <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                                 </svg>
-                              </button>
-                              <button 
+                              </motion.button>
+                              <motion.button 
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
                                 onClick={() => router.push(`/employer/create-job/${jobId}/step-1`)}
                                 className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
                                 title="Edit Job"
@@ -1886,8 +1842,10 @@ export default function HomePage() {
                                 <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                 </svg>
-                              </button>
-                              <button 
+                              </motion.button>
+                              <motion.button 
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
                                 onClick={() => handleDeleteJob(jobId)}
                                 className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
                                 title="Delete Job"
@@ -1895,18 +1853,22 @@ export default function HomePage() {
                                 <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                 </svg>
-                              </button>
+                              </motion.button>
                             </>
                           ) : (user?.role === 'jobSeeker' || user?.role === 'employee') ? (
                             <>
-                              <button 
+                              <motion.button 
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
                                 onClick={() => handleRequestChat(jobId)}
                                 className="px-3 py-1 bg-[#00EA72] hover:bg-[#00D66C] text-black text-[11px] font-semibold rounded-full transition-colors"
                                 title="Request to chat with employer"
                               >
                                 Request
-                              </button>
-                              <button 
+                              </motion.button>
+                              <motion.button 
+                                whileHover={{ scale: 1.2 }}
+                                whileTap={{ scale: 0.9 }}
                                 onClick={() => toggleFavorite(jobId)}
                                 className="p-1"
                                 title="Save Job"
@@ -1914,7 +1876,7 @@ export default function HomePage() {
                                 <svg className={`w-5 h-5 ${favoriteJobs.has(jobId) ? 'text-red-500' : 'text-gray-400'}`} fill="currentColor" viewBox="0 0 24 24">
                                   <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
                                 </svg>
-                              </button>
+                              </motion.button>
                             </>
                           ) : null}
                         </div>
@@ -1973,13 +1935,15 @@ export default function HomePage() {
                       </div>
 
                       {/* View Details Button */}
-                      <button
+                      <motion.button
+                        whileHover={{ scale: 1.03 }}
+                        whileTap={{ scale: 0.97 }}
                         onClick={() => router.push(`/job/${jobId}`)}
                         className="w-full bg-[#00EA72] hover:bg-[#00D66C] text-black font-medium text-[13px] py-2 rounded-full transition-colors"
                       >
                         View Details
-                      </button>
-                    </div>
+                      </motion.button>
+                    </motion.div>
                         );
                       });
                     })()
@@ -1989,6 +1953,7 @@ export default function HomePage() {
                 )}
               </>
             )}
+            </AnimatePresence>
           </div>
         </div>
 
@@ -2206,6 +2171,103 @@ export default function HomePage() {
           </div>
         </div>
       )}
+
+      {/* Delete Job Modal */}
+      <AnimatePresence>
+        {showDeleteModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ backgroundColor: 'rgba(0, 0, 0, 0.7)' }}
+            onClick={() => {
+              setShowDeleteModal(false);
+              setJobToDelete(null);
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className={`${getCardClassName()} rounded-xl border ${theme === 'dark' ? 'border-gray-700' : 'border-gray-300'} p-8 max-w-md w-full shadow-2xl`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Icon */}
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.1, type: "spring", stiffness: 200 }}
+                className="w-20 h-20 mx-auto mb-6 rounded-full bg-red-500/10 flex items-center justify-center"
+              >
+                <svg
+                  className="w-10 h-10 text-red-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
+                </svg>
+              </motion.div>
+
+              {/* Title */}
+              <motion.h2
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 }}
+                className={`text-2xl font-bold ${getTextClassName()} text-center mb-3`}
+              >
+                Delete Job Posting?
+              </motion.h2>
+
+              {/* Description */}
+              <motion.p
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className={`${getSubTextClassName()} text-center mb-8`}
+              >
+                This action cannot be undone. All applications and data associated with this job will be permanently removed.
+              </motion.p>
+
+              {/* Action Buttons */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.25 }}
+                className="flex gap-3"
+              >
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setJobToDelete(null);
+                  }}
+                  className={`flex-1 px-6 py-3 ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} ${getTextClassName()} rounded-lg font-semibold transition-all shadow-md hover:shadow-lg`}
+                >
+                  Cancel
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={confirmDeleteJob}
+                  className="flex-1 px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-all shadow-md hover:shadow-lg"
+                >
+                  Delete Job
+                </motion.button>
+              </motion.div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

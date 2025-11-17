@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import styles from '../../page.module.css';
+import { motion } from 'framer-motion';
 
 export default function Step1JobDetails() {
   const router = useRouter();
@@ -13,8 +14,7 @@ export default function Step1JobDetails() {
   const [formData, setFormData] = useState({
     jobTitle: '',
     employmentType: 'full-time',
-    shiftPreference: 'morning',
-    workersRights: true,
+    industryType: '',
     minimumExperience: 'no-experience'
   });
 
@@ -91,25 +91,57 @@ export default function Step1JobDetails() {
   };
 
   return (
-    <div className={styles.container}>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="min-h-screen bg-gray-50 p-6"
+    >
       {/* Progress Bar */}
-      <div className={styles.progressBar}>
-        <div className={styles.progress} style={{ width: '25%' }}></div>
-      </div>
+      <motion.div
+        initial={{ scaleX: 0 }}
+        animate={{ scaleX: 1 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-3xl mx-auto h-1.5 bg-gray-200 rounded-full overflow-hidden mb-6"
+      >
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: '25%' }}
+          transition={{ duration: 0.8, delay: 0.2 }}
+          className="h-full bg-[#00EA72] rounded-full"
+        />
+      </motion.div>
 
-      <div className={styles.stepHeader}>
-        <h1>Step 1: Job Details</h1>
-        <p>Provide basic information about the job position</p>
-      </div>
+      <motion.div
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.2 }}
+        className="text-center mb-6"
+      >
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Step 1: Job Details</h1>
+        <p className="text-gray-600 text-sm">Provide basic information about the job position</p>
+      </motion.div>
 
-      <div className={styles.stepContainer}>
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.3 }}
+        className="max-w-3xl mx-auto bg-white rounded-2xl border border-gray-200 p-8 shadow-sm"
+      >
         <form onSubmit={handleNext}>
-          {error && <div className={styles.errorMessage}>{error}</div>}
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6"
+            >
+              {error}
+            </motion.div>
+          )}
 
           {/* Job Title */}
-          <div className={styles.formGroup}>
-            <label htmlFor="jobTitle">
-              Job Title <span className={styles.required}>*</span>
+          <div className="mb-6">
+            <label htmlFor="jobTitle" className="block text-gray-900 font-semibold mb-2">
+              Job Title <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -119,19 +151,19 @@ export default function Step1JobDetails() {
               onChange={handleChange}
               placeholder="e.g., Senior Software Engineer, Marketing Manager"
               required
-              className={styles.input}
+              className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00EA72] focus:border-transparent transition-all"
             />
-            <small>Use a clear and accurate job title</small>
+            <small className="text-gray-500 text-xs mt-1 block">Use a clear and accurate job title</small>
           </div>
 
           {/* Employment Type */}
-          <div className={styles.formGroup}>
-            <label>
-              Employment Type <span className={styles.required}>*</span>
+          <div className="mb-6">
+            <label className="block text-gray-900 font-semibold mb-2">
+              Employment Type <span className="text-red-500">*</span>
             </label>
-            <div className={styles.radioGroup}>
+            <div className="flex flex-col gap-2">
               {['full-time', 'part-time', 'casual', 'contract'].map(type => (
-                <label key={type} className={styles.radioLabel}>
+                <label key={type} className="flex items-center gap-3 px-4 py-2 bg-gray-50 rounded-lg border border-gray-200 cursor-pointer hover:border-[#00EA72] transition-all">
                   <input
                     type="radio"
                     name="employmentType"
@@ -139,66 +171,45 @@ export default function Step1JobDetails() {
                     checked={formData.employmentType === type}
                     onChange={handleChange}
                     required
+                    className="w-4 h-4 accent-[#00EA72]"
                   />
-                  <span className={styles.capitalizeFirst}>{type}</span>
+                  <span className="capitalize text-gray-700">{type}</span>
                 </label>
               ))}
             </div>
           </div>
 
-          {/* Shift Preference */}
+          {/* Industry Type */}
           <div className={styles.formGroup}>
-            <label>
-              Shift Preference <span className={styles.required}>*</span>
+            <label htmlFor="industryType">
+              Industry Type <span className={styles.required}>*</span>
             </label>
-            <p className={styles.hint}>Indicate a shift preference for this role</p>
-            <div className={styles.radioGroup}>
-              {['morning', 'afternoon', 'evening'].map(shift => (
-                <label key={shift} className={styles.radioLabel}>
-                  <input
-                    type="radio"
-                    name="shiftPreference"
-                    value={shift}
-                    checked={formData.shiftPreference === shift}
-                    onChange={handleChange}
-                    required
-                  />
-                  <span className={styles.capitalizeFirst}>{shift}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Workers Rights */}
-          <div className={styles.formGroup}>
-            <label>
-              Workers Rights <span className={styles.required}>*</span>
-            </label>
-            <p className={styles.hint}>Specify if candidates must have the right to work in Australia</p>
-            <div className={styles.radioGroup}>
-              <label className={styles.radioLabel}>
-                <input
-                  type="radio"
-                  name="workersRights"
-                  value="true"
-                  checked={formData.workersRights === true}
-                  onChange={(e) => setFormData(prev => ({ ...prev, workersRights: e.target.value === 'true' }))}
-                  required
-                />
-                <span>Yes</span>
-              </label>
-              <label className={styles.radioLabel}>
-                <input
-                  type="radio"
-                  name="workersRights"
-                  value="false"
-                  checked={formData.workersRights === false}
-                  onChange={(e) => setFormData(prev => ({ ...prev, workersRights: e.target.value === 'true' }))}
-                  required
-                />
-                <span>No</span>
-              </label>
-            </div>
+            <p className={styles.hint}>Select the industry this job belongs to</p>
+            <select
+              id="industryType"
+              name="industryType"
+              value={formData.industryType}
+              onChange={handleChange}
+              required
+              className={styles.select}
+            >
+              <option value="">Select an industry</option>
+              <option value="Technology">Technology</option>
+              <option value="Healthcare">Healthcare</option>
+              <option value="Finance">Finance</option>
+              <option value="Education">Education</option>
+              <option value="Retail">Retail</option>
+              <option value="Manufacturing">Manufacturing</option>
+              <option value="Construction">Construction</option>
+              <option value="Hospitality">Hospitality</option>
+              <option value="Transportation">Transportation</option>
+              <option value="Real Estate">Real Estate</option>
+              <option value="Marketing">Marketing</option>
+              <option value="Legal">Legal</option>
+              <option value="Agriculture">Agriculture</option>
+              <option value="Entertainment">Entertainment</option>
+              <option value="Other">Other</option>
+            </select>
           </div>
 
           {/* Minimum Experience */}
@@ -224,28 +235,28 @@ export default function Step1JobDetails() {
           </div>
 
           {/* Buttons */}
-          <div className={styles.buttonGroup}>
-            <Link href="/employer/dashboard" className={styles.secondaryButton}>
+          <div className="flex gap-3 mt-8">
+            <Link href="/home" className="flex-1 py-3 bg-white border border-gray-300 text-gray-700 font-semibold rounded-full text-center hover:bg-gray-50 transition-all">
               ← Cancel
             </Link>
             <button
               type="submit"
               disabled={loading}
-              className={styles.primaryButton}
+              className="flex-1 py-3 bg-[#00EA72] hover:bg-[#00D66C] text-black font-semibold rounded-full transition-all shadow-md hover:shadow-lg disabled:opacity-50"
             >
               {loading ? 'Saving...' : 'Continue to Step 2 →'}
             </button>
           </div>
         </form>
-      </div>
+      </motion.div>
 
       {/* Step Indicator */}
-      <div className={styles.stepIndicator}>
-        <span className={styles.activeStep}>1. Job Details</span>
-        <span className={styles.inactiveStep}>2. Job Summary</span>
-        <span className={styles.inactiveStep}>3. Qualifications</span>
-        <span className={styles.inactiveStep}>4. Post Job</span>
+      <div className="flex justify-center gap-3 mt-6 flex-wrap">
+        <span className="px-4 py-2 bg-[#00EA72] text-black rounded-full font-medium text-sm">1. Job Details</span>
+        <span className="px-4 py-2 bg-gray-200 text-gray-500 rounded-full font-medium text-sm">2. Job Summary</span>
+        <span className="px-4 py-2 bg-gray-200 text-gray-500 rounded-full font-medium text-sm">3. Qualifications</span>
+        <span className="px-4 py-2 bg-gray-200 text-gray-500 rounded-full font-medium text-sm">4. Post Job</span>
       </div>
-    </div>
+    </motion.div>
   );
 }
