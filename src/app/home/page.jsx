@@ -427,7 +427,7 @@ export default function HomePage() {
   // Conditional tabs based on user role
   const tabs = user?.role === 'employer' 
     ? ['My Jobs', 'Networks']
-    : ['Search Jobs', 'My Applications', 'Saved Jobs'];
+    : ['Search Jobs', 'My Applications', 'Saved Jobs', 'My Network'];
 
   const networkConnections = [
     {
@@ -1251,7 +1251,7 @@ export default function HomePage() {
                   ))}
                 </motion.div>
 
-                {activeTab === 'Networks' ? (
+                {activeTab === 'Networks' || activeTab === 'My Network' ? (
                   /* Networks Tab Content */
                   <motion.div
                     key="networks-tab"
@@ -1429,9 +1429,6 @@ export default function HomePage() {
                       transition={{ duration: 0.5 }}
                       className="mb-6"
                     >
-                      <h2 className={`text-[18px] font-bold ${getTextClassName()}`}>
-                        Good Morning, {user?.fullName || 'User'}
-                      </h2>
                     </motion.div>
 
                     {/* Search Section */}
