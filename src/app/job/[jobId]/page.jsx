@@ -706,8 +706,12 @@ export default function JobDetails() {
                 {applications.map((application) => (
                   <div
                     key={application._id}
-                    className={`${getCardClassName()} border-2 ${theme === 'dark' ? 'border-gray-700 hover:border-[#00EA72]' : 'border-gray-200 hover:border-[#00EA72]'} rounded-2xl p-6 hover:shadow-xl transition-all cursor-pointer group`}
-                    onClick={() => handleViewApplicant(application)}
+                    className={`${getCardClassName()} border-2 ${
+                      job.status === 'closed' || !job.isActive 
+                        ? 'border-gray-400 opacity-60 grayscale cursor-not-allowed' 
+                        : `${theme === 'dark' ? 'border-gray-700 hover:border-[#00EA72]' : 'border-gray-200 hover:border-[#00EA72]'} cursor-pointer hover:shadow-xl`
+                    } rounded-2xl p-6 transition-all group`}
+                    onClick={() => (job.status !== 'closed' && job.isActive) && handleViewApplicant(application)}
                   >
                     {/* Top Section - Avatar and Info */}
                     <div className="flex items-start gap-4 mb-4">
@@ -764,8 +768,8 @@ export default function JobDetails() {
                                 application.applicantId?.personalDetails?.firstName || application.applicantId?.fullName || 'this candidate'
                               );
                             }}
-                            disabled={assigningApplicant === application._id}
-                            className="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white px-5 py-3 rounded-xl text-sm font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                            disabled={assigningApplicant === application._id || job.status === 'closed' || !job.isActive}
+                            className="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-5 py-3 rounded-xl text-sm font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
                           >
                             {assigningApplicant === application._id ? (
                               <>
@@ -780,7 +784,7 @@ export default function JobDetails() {
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
-                                Assign Job
+                                {job.status === 'closed' || !job.isActive ? 'Job Closed' : 'Assign Job'}
                               </>
                             )}
                           </button>
@@ -789,12 +793,13 @@ export default function JobDetails() {
                               e.stopPropagation();
                               handleChatWithApplicant(application.applicantId._id);
                             }}
-                            className="flex-1 bg-[#00EA72] hover:bg-[#00D66C] text-black px-5 py-3 rounded-xl text-sm font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                            disabled={job.status === 'closed' || !job.isActive}
+                            className="flex-1 bg-[#00EA72] hover:bg-[#00D66C] disabled:bg-gray-400 disabled:cursor-not-allowed text-black px-5 py-3 rounded-xl text-sm font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
                           >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
-                            Take Interview
+                            {job.status === 'closed' || !job.isActive ? 'Chat Unavailable' : 'Take Interview'}
                           </button>
                         </>
                       ) : (

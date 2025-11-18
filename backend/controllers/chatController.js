@@ -15,6 +15,14 @@ exports.getOrCreateChat = async (req, res) => {
       return res.status(404).json({ message: 'Job not found' });
     }
 
+    // Check if job is closed
+    if (job.status === 'closed' || !job.isActive) {
+      return res.status(403).json({ 
+        message: 'This job has been closed. Chatting is no longer available.',
+        jobClosed: true 
+      });
+    }
+
     let employerId, jobSeekerId;
 
     if (userRole === 'employer') {
@@ -35,8 +43,8 @@ exports.getOrCreateChat = async (req, res) => {
       employerId,
       jobSeekerId
     }).populate('jobId', 'jobDetails.jobTitle jobDetails.businessName')
-      .populate('employerId', 'fullName email')
-      .populate('jobSeekerId', 'fullName email');
+      .populate('employerId', 'fullName email role personalDetails.profileImage businessSummary.companyLogo')
+      .populate('jobSeekerId', 'fullName email role personalDetails.profileImage businessSummary.companyLogo');
 
     if (!chat) {
       chat = await Chat.create({
@@ -48,8 +56,8 @@ exports.getOrCreateChat = async (req, res) => {
 
       chat = await Chat.findById(chat._id)
         .populate('jobId', 'jobDetails.jobTitle jobDetails.businessName')
-        .populate('employerId', 'fullName email')
-        .populate('jobSeekerId', 'fullName email');
+        .populate('employerId', 'fullName email role personalDetails.profileImage businessSummary.companyLogo')
+        .populate('jobSeekerId', 'fullName email role personalDetails.profileImage businessSummary.companyLogo');
     }
 
     res.json({ chat });
@@ -73,9 +81,9 @@ exports.getUserChats = async (req, res) => {
     }
 
     const chats = await Chat.find(query)
-      .populate('jobId', 'jobDetails.jobTitle jobDetails.businessName status')
-      .populate('employerId', 'fullName email')
-      .populate('jobSeekerId', 'fullName email')
+      .populate('jobId', 'jobDetails.jobTitle jobDetails.businessName status isActive')
+      .populate('employerId', 'fullName email role personalDetails.profileImage businessSummary.companyLogo')
+      .populate('jobSeekerId', 'fullName email role personalDetails.profileImage businessSummary.companyLogo')
       .sort({ lastMessageTime: -1 });
 
     res.json({ chats });
@@ -102,7 +110,7 @@ exports.getJobChats = async (req, res) => {
     }
 
     const chats = await Chat.find({ jobId, employerId: userId })
-      .populate('jobSeekerId', 'fullName email')
+      .populate('jobSeekerId', 'fullName email role personalDetails.profileImage businessSummary.companyLogo')
       .populate('jobId', 'jobDetails.jobTitle')
       .sort({ lastMessageTime: -1 });
 
@@ -125,9 +133,17 @@ exports.sendMessage = async (req, res) => {
       return res.status(400).json({ message: 'Message cannot be empty' });
     }
 
-    const chat = await Chat.findById(chatId);
+    const chat = await Chat.findById(chatId).populate('jobId', 'status isActive');
     if (!chat) {
       return res.status(404).json({ message: 'Chat not found' });
+    }
+
+    // Check if the job is closed
+    if (chat.jobId && (chat.jobId.status === 'closed' || !chat.jobId.isActive)) {
+      return res.status(403).json({ 
+        message: 'This job has been closed. Chatting is no longer available.',
+        jobClosed: true 
+      });
     }
 
     // Verify user is part of this chat
@@ -135,12 +151,12 @@ exports.sendMessage = async (req, res) => {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
-    // Check if chat is closed
+    // Check if chat is closed by employer
     if (chat.closedByEmployer) {
-      // Only employer can send messages in closed chat
-      if (userRole !== 'employer') {
-        return res.status(403).json({ message: 'This conversation has been closed by the employer' });
-      }
+      return res.status(403).json({ 
+        message: 'This conversation has been closed by the employer',
+        chatClosed: true
+      });
     }
 
     // Add message

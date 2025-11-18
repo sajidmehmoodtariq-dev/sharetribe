@@ -395,6 +395,43 @@ exports.closeJob = async (req, res) => {
       return res.status(403).json({ error: 'Not authorized to close this job' });
     }
 
+    // Only delete chats with applicants who were accepted/assigned the job
+    const Chat = require('../models/Chat');
+    const Application = require('../models/Application');
+    
+    // Find all accepted applications for this job
+    const acceptedApplications = await Application.find({ 
+      jobId: jobId, 
+      status: 'accepted' 
+    });
+    
+    // Get the job seeker IDs from accepted applications
+    const acceptedJobSeekerIds = acceptedApplications.map(app => app.applicantId);
+    
+    // Only delete chats with job seekers who were assigned the job
+    let deletedChats = { deletedCount: 0 };
+    if (acceptedJobSeekerIds.length > 0) {
+      deletedChats = await Chat.deleteMany({ 
+        jobId: jobId,
+        jobSeekerId: { $in: acceptedJobSeekerIds }
+      });
+      console.log(`Job ${jobId} closed. Deleted ${deletedChats.deletedCount} chats with assigned applicants.`);
+    } else {
+      console.log(`Job ${jobId} closed. No accepted applications, so no chats were deleted.`);
+    }
+
+    // Mark all applications as inactive (but keep them for records)
+    const updatedApplications = await Application.updateMany(
+      { jobId: jobId },
+      { 
+        $set: { 
+          isActive: false,
+          statusUpdatedAt: new Date()
+        } 
+      }
+    );
+    console.log(`Updated ${updatedApplications.modifiedCount} applications to inactive status.`);
+
     job.status = 'closed';
     job.closeDate = new Date();
     job.isActive = false;
@@ -404,8 +441,12 @@ exports.closeJob = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Job closed successfully',
-      job
+      message: acceptedJobSeekerIds.length > 0 
+        ? 'Job closed successfully. Chats with assigned applicants have been permanently deleted.' 
+        : 'Job closed successfully. Other applicant chats remain available.',
+      job,
+      deletedChats: deletedChats.deletedCount,
+      updatedApplications: updatedApplications.modifiedCount
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -442,7 +483,8 @@ exports.deleteJob = async (req, res) => {
 // Save job (by job seeker)
 exports.saveJob = async (req, res) => {
   try {
-    const { jobId, userId } = req.body;
+    const { jobId } = req.params;
+    const { userId } = req.body;
 
     if (!jobId || !userId) {
       return res.status(400).json({ error: 'Job ID and User ID are required' });
@@ -453,17 +495,21 @@ exports.saveJob = async (req, res) => {
       return res.status(404).json({ error: 'Job not found' });
     }
 
-    // Check if already saved
-    if (job.savedByUsers.includes(userId)) {
+    // Check if already saved (convert ObjectIds to strings for comparison)
+    const isAlreadySaved = job.savedByUsers.some(id => id.toString() === userId.toString());
+    if (isAlreadySaved) {
       return res.status(400).json({ error: 'Job already saved' });
     }
 
     job.savedByUsers.push(userId);
     await job.save();
 
+    console.log(`Job ${jobId} saved by user ${userId}. Total saved by: ${job.savedByUsers.length}`);
+
     res.status(200).json({
       success: true,
-      message: 'Job saved successfully'
+      message: 'Job saved successfully',
+      savedByUsers: job.savedByUsers
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -473,7 +519,8 @@ exports.saveJob = async (req, res) => {
 // Unsave job (by job seeker)
 exports.unsaveJob = async (req, res) => {
   try {
-    const { jobId, userId } = req.body;
+    const { jobId } = req.params;
+    const { userId } = req.body;
 
     if (!jobId || !userId) {
       return res.status(400).json({ error: 'Job ID and User ID are required' });
@@ -484,12 +531,15 @@ exports.unsaveJob = async (req, res) => {
       return res.status(404).json({ error: 'Job not found' });
     }
 
-    job.savedByUsers = job.savedByUsers.filter(id => id.toString() !== userId);
+    job.savedByUsers = job.savedByUsers.filter(id => id.toString() !== userId.toString());
     await job.save();
+
+    console.log(`Job ${jobId} unsaved by user ${userId}. Total saved by: ${job.savedByUsers.length}`);
 
     res.status(200).json({
       success: true,
-      message: 'Job unsaved successfully'
+      message: 'Job unsaved successfully',
+      savedByUsers: job.savedByUsers
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -510,6 +560,8 @@ exports.getSavedJobs = async (req, res) => {
       savedByUsers: userId,
       status: 'published' // Only return published jobs
     }).sort({ createdAt: -1 });
+
+    console.log(`Fetching saved jobs for user ${userId}. Found ${savedJobs.length} jobs`);
 
     res.status(200).json({
       success: true,

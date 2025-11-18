@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from '@/components/ThemeProvider';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
 
@@ -15,6 +16,10 @@ export default function ChatsPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [showChatList, setShowChatList] = useState(true);
+  const [closingChat, setClosingChat] = useState(false);
+  const [showCloseModal, setShowCloseModal] = useState(false);
+  const [chatToClose, setChatToClose] = useState(null);
+  const [closeAction, setCloseAction] = useState('close'); // 'close' or 'reopen'
   const messagesEndRef = useRef(null);
   const pollingIntervalRef = useRef(null);
   const router = useRouter();
@@ -33,10 +38,10 @@ export default function ChatsPage() {
     fetchUser();
     fetchChats();
 
-    // Start polling for new messages every 2 seconds
+    // Start polling for new messages every 1.5 seconds
     pollingIntervalRef.current = setInterval(() => {
       fetchChats(true); // Silent fetch without loading state
-    }, 2000);
+    }, 1500);
 
     // Cleanup on unmount
     return () => {
@@ -102,8 +107,17 @@ export default function ChatsPage() {
         url = `${BACKEND_URL}/api/chats/job/${jobId}/all`;
       }
       
+      // Add cache busting timestamp
+      url += url.includes('?') ? '&' : '?';
+      url += `_t=${Date.now()}`;
+      
       const response = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
       });
 
       if (response.ok) {
@@ -147,7 +161,7 @@ export default function ChatsPage() {
                 ...c,
                 unreadCount: {
                   ...c.unreadCount,
-                  [user.role === 'employer' ? 'employer' : 'jobSeeker']: 0
+                  [user?.role === 'employer' ? 'employer' : 'jobSeeker']: 0
                 }
               }
             : c
@@ -161,6 +175,12 @@ export default function ChatsPage() {
   const sendMessage = async (e) => {
     e.preventDefault();
     if (!message.trim() || !selectedChat || sending) return;
+
+    // Check if job is closed
+    if (selectedChat.jobId?.status === 'closed' || !selectedChat.jobId?.isActive) {
+      alert('This job has been closed. Chatting is no longer available.');
+      return;
+    }
 
     setSending(true);
     try {
@@ -190,6 +210,18 @@ export default function ChatsPage() {
               : c
           ).sort((a, b) => new Date(b.lastMessageTime) - new Date(a.lastMessageTime))
         );
+        
+        // Immediately fetch latest messages
+        await fetchChats(true);
+      } else {
+        const errorData = await response.json();
+        if (errorData.jobClosed) {
+          alert('This job has been closed. Chatting is no longer available.');
+        } else if (errorData.chatClosed) {
+          alert('This conversation has been closed by the employer.');
+        } else {
+          alert(errorData.message || 'Failed to send message');
+        }
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -252,38 +284,20 @@ export default function ChatsPage() {
     }
   };
 
-  const closeChat = async (chatId) => {
-    if (!confirm('Are you sure you want to close this conversation? The applicant will not be able to send messages anymore.')) return;
-
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${BACKEND_URL}/api/chats/${chatId}/close`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        // Update the chat in list
-        setChats(prevChats =>
-          prevChats.map(c => c._id === chatId ? data.chat : c)
-        );
-        // Update selected chat if it's the one being closed
-        if (selectedChat?._id === chatId) {
-          setSelectedChat(data.chat);
-        }
-        alert('Chat closed successfully');
-      }
-    } catch (error) {
-      console.error('Error closing chat:', error);
-      alert('Failed to close chat');
-    }
+  const handleCloseChatClick = (chatId, action) => {
+    setChatToClose(chatId);
+    setCloseAction(action);
+    setShowCloseModal(true);
   };
 
-  const reopenChat = async (chatId) => {
+  const confirmCloseChat = async () => {
+    if (!chatToClose) return;
+
+    setClosingChat(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${BACKEND_URL}/api/chats/${chatId}/reopen`, {
+      const endpoint = closeAction === 'close' ? 'close' : 'reopen';
+      const response = await fetch(`${BACKEND_URL}/api/chats/${chatToClose}/${endpoint}`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -292,22 +306,33 @@ export default function ChatsPage() {
         const data = await response.json();
         // Update the chat in list
         setChats(prevChats =>
-          prevChats.map(c => c._id === chatId ? data.chat : c)
+          prevChats.map(c => c._id === chatToClose ? data.chat : c)
         );
-        // Update selected chat if it's the one being reopened
-        if (selectedChat?._id === chatId) {
+        // Update selected chat if it's the one being closed/reopened
+        if (selectedChat?._id === chatToClose) {
           setSelectedChat(data.chat);
         }
-        alert('Chat reopened successfully');
+        
+        // Force immediate refresh
+        await fetchChats(true);
       }
     } catch (error) {
-      console.error('Error reopening chat:', error);
-      alert('Failed to reopen chat');
+      console.error(`Error ${closeAction}ing chat:`, error);
+    } finally {
+      setClosingChat(false);
+      setShowCloseModal(false);
+      setChatToClose(null);
     }
   };
 
   const formatTime = (timestamp) => {
+    if (!timestamp) return '';
+    
     const date = new Date(timestamp);
+    
+    // Check if date is invalid
+    if (isNaN(date.getTime())) return '';
+    
     const now = new Date();
     const diff = now - date;
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
@@ -351,349 +376,502 @@ export default function ChatsPage() {
   }
 
   return (
-    <div className="min-h-screen" style={getBackgroundStyle()}>
-      <div className="container mx-auto px-4 py-6 max-w-7xl">
-        {/* Mobile back button when chat is open */}
-        {!showChatList && selectedChat && (
-          <button
-            onClick={() => {
-              setShowChatList(true);
-              setSelectedChat(null);
-            }}
-            className="md:hidden mb-4 flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:underline"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            Back to chats
-          </button>
-        )}
-        
-        <div className={`${getCardClassName()} rounded-3xl shadow-xl overflow-hidden`} style={{ height: 'calc(100vh - 140px)' }}>
-          <div className="flex h-full">
-            {/* Chat List - Hidden on mobile when chat is selected */}
-            <div className={`${showChatList ? 'flex' : 'hidden'} md:flex w-full md:w-[420px] border-r ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} flex-col`}>
-              {/* Header */}
-              <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
-                <div className="flex items-center justify-between mb-6">
-                  <h1 className={`text-2xl font-bold ${getTextClassName()}`}>Messages</h1>
-                  <button
-                    onClick={() => router.push('/home')}
-                    className={`p-2 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'} transition-colors`}
-                  >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
+    <div className="h-screen flex" style={getBackgroundStyle()}>
+      {/* Chat List Sidebar */}
+      <motion.div
+        initial={{ x: -100, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        className={`${showChatList ? 'flex' : 'hidden'} md:flex w-full md:w-96 flex-col border-r ${theme === 'dark' ? 'border-gray-700/50' : 'border-gray-200'}`}
+      >
+        {/* Header */}
+        <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-700/50' : 'border-gray-200'}`}>
+          <div className="flex items-center justify-between mb-1">
+            <h1 className={`text-2xl font-bold ${getTextClassName()}`}>Messages</h1>
+            <button
+              onClick={() => {
+                // Check if we came from a job page
+                const params = new URLSearchParams(window.location.search);
+                const jobId = params.get('jobId');
+                if (jobId) {
+                  router.push(`/job/${jobId}`);
+                } else {
+                  router.push('/home');
+                }
+              }}
+              className={`p-2 rounded-full ${theme === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-gray-100'} transition-all`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <p className={`text-sm ${getSubTextClassName()}`}>{chats.length} conversation{chats.length !== 1 ? 's' : ''}</p>
+        </div>
 
-                {/* Active Users Preview */}
-                {chats.length > 0 && (
-                  <div className="flex items-center gap-2 mb-4">
-                    {chats.slice(0, 3).map((chat) => {
-                      const otherUser = getOtherUser(chat);
-                      return (
-                        <div key={chat._id} className="relative">
-                          <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold ${theme === 'dark' ? 'bg-gray-600' : 'bg-gray-500'}`}>
+        {/* Chat List */}
+        <div className="flex-1 overflow-y-auto">
+          {chats.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', stiffness: 200 }}
+                className="w-20 h-20 rounded-full bg-[#00EA72]/10 flex items-center justify-center mb-4"
+              >
+                <svg className="w-10 h-10 text-[#00EA72]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              </motion.div>
+              <p className={`font-semibold ${getTextClassName()} mb-2`}>No conversations yet</p>
+              <p className={`text-sm ${getSubTextClassName()}`}>
+                {user?.role === 'jobSeeker' ? 'Apply to jobs to start chatting' : 'Wait for applicants to message you'}
+              </p>
+            </div>
+          ) : (
+            <AnimatePresence>
+              {chats.map((chat, index) => {
+                const otherUser = getOtherUser(chat);
+                const unreadCount = getUnreadCount(chat);
+                const isSelected = selectedChat?._id === chat._id;
+                const lastMessage = chat.messages?.[chat.messages.length - 1];
+
+                return (
+                  <motion.div
+                    key={chat._id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, x: -100 }}
+                    transition={{ delay: index * 0.05 }}
+                    onClick={() => selectChat(chat)}
+                    className={`p-4 cursor-pointer transition-all border-b ${
+                      theme === 'dark' ? 'border-gray-700/50' : 'border-gray-100'
+                    } ${
+                      isSelected
+                        ? theme === 'dark'
+                          ? 'bg-[#00EA72]/10 border-l-4 border-l-[#00EA72]'
+                          : 'bg-[#00EA72]/5 border-l-4 border-l-[#00EA72]'
+                        : theme === 'dark'
+                        ? 'hover:bg-gray-800/50'
+                        : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      {/* Avatar */}
+                      <div className="relative shrink-0">
+                        {otherUser?.role === 'employer' && otherUser?.businessSummary?.companyLogo ? (
+                          <img 
+                            src={otherUser.businessSummary.companyLogo} 
+                            alt={otherUser.fullName}
+                            className="w-12 h-12 rounded-full object-cover shadow-lg"
+                          />
+                        ) : otherUser?.personalDetails?.profileImage ? (
+                          <img 
+                            src={otherUser.personalDetails.profileImage} 
+                            alt={otherUser.fullName}
+                            className="w-12 h-12 rounded-full object-cover shadow-lg"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded-full bg-linear-to-br from-[#00EA72] to-[#00D66C] flex items-center justify-center text-white font-bold text-lg shadow-lg">
                             {(otherUser?.fullName || otherUser?.name || 'U').charAt(0).toUpperCase()}
                           </div>
-                          <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                        )}
+                        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
+                      </div>
 
-                {/* Filter Tabs */}
-                <div className={`flex gap-4 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
-                  <button className={`pb-3 px-1 border-b-2 border-[#00EA72] ${getTextClassName()} font-semibold text-sm`}>
-                    All
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-baseline justify-between mb-1">
+                          <h3 className={`font-semibold truncate ${getTextClassName()}`}>
+                            {otherUser?.fullName || otherUser?.name || 'Unknown User'}
+                          </h3>
+                          {lastMessage && (
+                            <span className={`text-xs ${getSubTextClassName()} ml-2`}>
+                              {formatTime(lastMessage.createdAt)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className={`text-sm ${getSubTextClassName()} truncate`}>
+                            {chat.jobId?.jobDetails?.jobTitle || 'Job Position'}
+                          </p>
+                          {(chat.jobId?.status === 'closed' || !chat.jobId?.isActive) && (
+                            <span className="px-2 py-0.5 bg-red-500 text-white text-[10px] rounded-full font-semibold shrink-0">
+                              Closed
+                            </span>
+                          )}
+                        </div>
+                        {lastMessage && (
+                          <p className={`text-sm truncate ${unreadCount > 0 ? 'font-semibold ' + getTextClassName() : getSubTextClassName()}`}>
+                            {lastMessage.senderId === user?._id ? 'You: ' : ''}{lastMessage.message}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Unread Badge */}
+                      {unreadCount > 0 && (
+                        <motion.div
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          className="shrink-0 w-6 h-6 bg-[#00EA72] rounded-full flex items-center justify-center text-xs font-bold text-black"
+                        >
+                          {unreadCount}
+                        </motion.div>
+                      )}
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          )}
+        </div>
+      </motion.div>
+
+      {/* Chat Window */}
+      <div className={`${!showChatList ? 'flex' : 'hidden'} md:flex flex-1 flex-col`}>
+        {selectedChat ? (
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={selectedChat._id}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex flex-col h-full"
+            >
+              {/* Chat Header */}
+              <div className={`px-6 py-4 border-b ${theme === 'dark' ? 'border-gray-700/50' : 'border-gray-200'} flex items-center justify-between`}>
+                <div className="flex items-center gap-3">
+                  {/* Mobile Back Button */}
+                  <button
+                    onClick={() => {
+                      // On mobile, go back to chat list first
+                      setShowChatList(true);
+                      setSelectedChat(null);
+                    }}
+                    className="md:hidden p-2 -ml-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
                   </button>
-                  <button className={`pb-3 px-1 ${getSubTextClassName()} font-semibold text-sm hover:${getTextClassName()}`}>
-                    Unread
-                  </button>
+
+                  {/* Avatar */}
+                  <div className="relative">
+                    {getOtherUser(selectedChat)?.role === 'employer' && getOtherUser(selectedChat)?.businessSummary?.companyLogo ? (
+                      <img 
+                        src={getOtherUser(selectedChat).businessSummary.companyLogo} 
+                        alt={getOtherUser(selectedChat).fullName}
+                        className="w-10 h-10 rounded-full object-cover shadow-lg"
+                      />
+                    ) : getOtherUser(selectedChat)?.personalDetails?.profileImage ? (
+                      <img 
+                        src={getOtherUser(selectedChat).personalDetails.profileImage} 
+                        alt={getOtherUser(selectedChat).fullName}
+                        className="w-10 h-10 rounded-full object-cover shadow-lg"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-linear-to-br from-[#00EA72] to-[#00D66C] flex items-center justify-center text-white font-bold shadow-lg">
+                        {(getOtherUser(selectedChat)?.fullName || getOtherUser(selectedChat)?.name || 'U').charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                  </div>
+
+                  {/* User Info */}
+                  <div>
+                    <h2 className={`font-semibold ${getTextClassName()}`}>
+                      {getOtherUser(selectedChat)?.fullName || getOtherUser(selectedChat)?.name || 'Unknown User'}
+                    </h2>
+                    <p className={`text-xs ${getSubTextClassName()}`}>
+                      {selectedChat.jobId?.jobDetails?.jobTitle || 'Job Position'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-2">
+                  {/* Refresh Button */}
+                  <motion.button
+                    whileHover={{ rotate: 180 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => fetchChats(true)}
+                    className={`p-2 rounded-full ${theme === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-gray-100'} transition-all`}
+                    title="Refresh messages"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  </motion.button>
+
+                  {user?.role === 'employer' && (
+                    <>
+                      {selectedChat.closedByEmployer ? (
+                        <button
+                          onClick={() => handleCloseChatClick(selectedChat._id, 'reopen')}
+                          className="px-4 py-2 bg-[#00EA72] hover:bg-[#00D66C] text-black rounded-full text-sm font-semibold transition-all shadow-lg hover:shadow-xl"
+                        >
+                          Reopen Chat
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleCloseChatClick(selectedChat._id, 'close')}
+                          className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-full text-sm font-semibold transition-all shadow-lg hover:shadow-xl"
+                        >
+                          Close Chat
+                        </button>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
 
-              {/* Chat List Items */}
-              <div className="flex-1 overflow-y-auto">
-                {chats.length === 0 ? (
-                  <div className={`p-8 text-center ${getSubTextClassName()}`}>
-                    <svg
-                      className={`mx-auto h-12 w-12 mb-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                      />
+              {/* Messages Area */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                <AnimatePresence>
+                  {selectedChat.messages?.map((msg, index) => {
+                    const isOwn = msg.senderId === user?._id;
+                    const showAvatar = index === 0 || selectedChat.messages[index - 1].senderId !== msg.senderId;
+
+                    return (
+                      <motion.div
+                        key={msg._id || index}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                        transition={{ delay: index * 0.02 }}
+                        className={`flex gap-3 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}
+                      >
+                        {/* Avatar */}
+                        <div className="shrink-0">
+                          {showAvatar ? (
+                            isOwn ? (
+                              user?.role === 'employer' && user?.businessSummary?.companyLogo ? (
+                                <img 
+                                  src={user.businessSummary.companyLogo} 
+                                  alt={user.fullName}
+                                  className="w-8 h-8 rounded-full object-cover"
+                                />
+                              ) : user?.personalDetails?.profileImage ? (
+                                <img 
+                                  src={user.personalDetails.profileImage} 
+                                  alt={user.fullName}
+                                  className="w-8 h-8 rounded-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-[#00EA72] flex items-center justify-center text-white font-semibold text-sm">
+                                  {(user?.fullName || user?.name || 'You').charAt(0).toUpperCase()}
+                                </div>
+                              )
+                            ) : (
+                              getOtherUser(selectedChat)?.role === 'employer' && getOtherUser(selectedChat)?.businessSummary?.companyLogo ? (
+                                <img 
+                                  src={getOtherUser(selectedChat).businessSummary.companyLogo} 
+                                  alt={getOtherUser(selectedChat).fullName}
+                                  className="w-8 h-8 rounded-full object-cover"
+                                />
+                              ) : getOtherUser(selectedChat)?.personalDetails?.profileImage ? (
+                                <img 
+                                  src={getOtherUser(selectedChat).personalDetails.profileImage} 
+                                  alt={getOtherUser(selectedChat).fullName}
+                                  className="w-8 h-8 rounded-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-linear-to-br from-gray-400 to-gray-500 flex items-center justify-center text-white font-semibold text-sm">
+                                  {(getOtherUser(selectedChat)?.fullName || 'U').charAt(0).toUpperCase()}
+                                </div>
+                              )
+                            )
+                          ) : (
+                            <div className="w-8"></div>
+                          )}
+                        </div>
+
+                        {/* Message Bubble */}
+                        <div className={`flex flex-col max-w-[70%] ${isOwn ? 'items-end' : 'items-start'}`}>
+                          <div
+                            className={`px-4 py-2.5 rounded-2xl ${
+                              isOwn
+                                ? 'bg-[#00EA72] text-black rounded-br-sm'
+                                : theme === 'dark'
+                                ? 'bg-gray-800 text-white rounded-bl-sm'
+                                : 'bg-gray-200 text-gray-900 rounded-bl-sm'
+                            } shadow-sm`}
+                          >
+                            <p className="text-sm whitespace-pre-wrap wrap-break-word">{msg.message}</p>
+                          </div>
+                          <span className={`text-xs ${getSubTextClassName()} mt-1 px-1`}>
+                            {formatTime(msg.createdAt)}
+                          </span>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </AnimatePresence>
+                <div ref={messagesEndRef} />
+              </div>
+
+              {/* Message Input */}
+              <div className={`p-4 border-t ${theme === 'dark' ? 'border-gray-700/50' : 'border-gray-200'}`}>
+                {(selectedChat.jobId?.status === 'closed' || !selectedChat.jobId?.isActive) ? (
+                  <div className={`text-center py-4 px-6 rounded-2xl ${theme === 'dark' ? 'bg-red-900/30 border border-red-700' : 'bg-red-50 border border-red-200'}`}>
+                    <svg className="w-8 h-8 mx-auto mb-2 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
-                    <p>No conversations yet</p>
-                    <p className="text-sm mt-2">
-                      {user?.role === 'jobSeeker'
-                        ? 'Start a conversation by applying to a job'
-                        : 'Wait for job seekers to message you'}
+                    <p className={`text-sm font-semibold ${theme === 'dark' ? 'text-red-400' : 'text-red-700'}`}>
+                      This job has been closed
+                    </p>
+                    <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-red-300' : 'text-red-600'}`}>
+                      Chatting is no longer available for this position
+                    </p>
+                  </div>
+                ) : selectedChat.closedByEmployer && user?.role !== 'employer' ? (
+                  <div className={`text-center py-4 px-6 rounded-2xl ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                    <p className={`text-sm ${getSubTextClassName()}`}>
+                      This conversation has been closed by the employer
                     </p>
                   </div>
                 ) : (
-                  chats.map((chat) => {
-                    const otherUser = getOtherUser(chat);
-                    const unreadCount = getUnreadCount(chat);
-                    const isSelected = selectedChat?._id === chat._id;
-                    const isTyping = false;
-
-                    return (
-                      <div
-                        key={chat._id}
-                        onClick={() => selectChat(chat)}
-                        className={`px-6 py-4 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-100'} cursor-pointer transition-colors ${
-                          isSelected 
-                            ? theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-50' 
-                            : theme === 'dark' ? 'hover:bg-gray-700/50' : 'hover:bg-gray-50'
-                        }`}
-                      >
-                        <div className="flex items-start gap-3">
-                          {/* Avatar */}
-                          <div className="relative shrink-0">
-                            <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold ${theme === 'dark' ? 'bg-gray-600' : 'bg-gray-500'}`}>
-                              {(otherUser?.fullName || otherUser?.name || 'U').charAt(0).toUpperCase()}
-                            </div>
-                            <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
-                          </div>
-
-                          {/* Content */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between mb-1">
-                              <h3 className={`font-semibold ${getTextClassName()} truncate`}>
-                                {otherUser?.fullName || otherUser?.name || 'Unknown User'}
-                              </h3>
-                              <span className={`text-xs ${getSubTextClassName()} ml-2 shrink-0`}>
-                                {formatTime(chat.lastMessageTime)}
-                              </span>
-                            </div>
-                            <p className={`text-sm truncate ${isTyping ? 'text-green-500 italic' : getSubTextClassName()}`}>
-                              {isTyping ? (
-                                `${otherUser?.fullName?.split(' ')[0] || 'User'} is typing...`
-                              ) : (
-                                chat.lastMessage || 'No messages yet'
-                              )}
-                            </p>
-                          </div>
-
-                          {/* Unread Badge */}
-                          {unreadCount > 0 && (
-                            <div className="shrink-0">
-                              <div className="w-5 h-5 bg-[#00EA72] rounded-full flex items-center justify-center text-white text-xs font-bold">
-                                {unreadCount}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })
+                  <form onSubmit={sendMessage} className="flex gap-3">
+                    <input
+                      type="text"
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      placeholder="Type your message..."
+                      disabled={sending}
+                      className={`flex-1 px-4 py-3 rounded-full border ${
+                        theme === 'dark'
+                          ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500'
+                          : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+                      } focus:outline-none focus:ring-2 focus:ring-[#00EA72] focus:border-transparent transition-all`}
+                    />
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      type="submit"
+                      disabled={!message.trim() || sending}
+                      className="px-6 py-3 bg-[#00EA72] hover:bg-[#00D66C] text-black rounded-full font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
+                    >
+                      {sending ? (
+                        <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                      ) : (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                        </svg>
+                      )}
+                      <span className="hidden sm:inline">Send</span>
+                    </motion.button>
+                  </form>
                 )}
               </div>
-            </div>
-
-            {/* Chat Window - Hidden on mobile when chat list is shown */}
-            <div className={`${!showChatList ? 'flex' : 'hidden'} md:flex flex-1 flex-col`}>
-              {selectedChat ? (
-                <>
-                  {/* Chat Header */}
-                  <div className={`px-6 py-4 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        {/* Back button for mobile */}
-                        <button
-                          onClick={() => setShowChatList(true)}
-                          className="md:hidden p-2 -ml-2 text-blue-600 dark:text-blue-400"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                          </svg>
-                        </button>
-                        
-                        {/* Avatar */}
-                        <div className="relative">
-                          <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold ${theme === 'dark' ? 'bg-gray-600' : 'bg-gray-500'}`}>
-                            {(getOtherUser(selectedChat)?.fullName || getOtherUser(selectedChat)?.name || 'U').charAt(0).toUpperCase()}
-                          </div>
-                          <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
-                        </div>
-                        
-                        <div>
-                          <h2 className={`font-semibold ${getTextClassName()}`}>
-                            {getOtherUser(selectedChat)?.fullName || getOtherUser(selectedChat)?.name || 'Unknown User'}
-                          </h2>
-                          <p className={`text-sm ${getSubTextClassName()}`}>
-                            {selectedChat.jobId?.jobDetails?.jobTitle || 'Job Title'}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        {user?.role === 'employer' && !selectedChat.acceptedByEmployer && (
-                          <button
-                            onClick={() => acceptChat(selectedChat._id)}
-                            className="px-3 py-1.5 text-xs bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                          >
-                            Accept
-                          </button>
-                        )}
-                        {user?.role === 'employer' && (
-                          selectedChat.closedByEmployer ? (
-                            <button
-                              onClick={() => reopenChat(selectedChat._id)}
-                              className="px-3 py-1.5 text-xs bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-1"
-                            >
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                              </svg>
-                              <span className="hidden sm:inline">Reopen</span>
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => closeChat(selectedChat._id)}
-                              className="px-3 py-1.5 text-xs bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors flex items-center gap-1"
-                            >
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                              </svg>
-                              <span className="hidden sm:inline">End</span>
-                            </button>
-                          )
-                        )}
-                        <button
-                          onClick={() => router.push(`/job/${selectedChat.jobId._id}`)}
-                          className="hidden sm:block px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                        >
-                          View Job
-                        </button>
-                        <button
-                          onClick={() => deleteChat(selectedChat._id)}
-                          className={`p-1.5 rounded-lg transition-colors ${theme === 'dark' ? 'text-red-400 hover:bg-red-900/20' : 'text-red-600 hover:bg-red-50'}`}
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Messages */}
-                  <div className={`flex-1 overflow-y-auto p-6 ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
-                    {selectedChat.messages.length === 0 ? (
-                      <div className={`text-center ${getSubTextClassName()} mt-8`}>
-                        No messages yet. Start the conversation!
-                      </div>
-                    ) : (
-                      selectedChat.messages.map((msg, index) => {
-                        const isOwn = msg.senderId === user?._id;
-                        return (
-                          <div
-                            key={index}
-                            className={`mb-4 flex ${isOwn ? 'justify-end' : 'justify-start'}`}
-                          >
-                            <div
-                              className={`max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-3 ${
-                                isOwn
-                                  ? 'bg-blue-600 text-white rounded-br-sm'
-                                  : theme === 'dark' 
-                                    ? 'bg-gray-800 text-white rounded-bl-sm shadow-sm'
-                                    : 'bg-white text-gray-900 rounded-bl-sm shadow-sm'
-                              }`}
-                            >
-                              <p className="text-sm leading-relaxed">{msg.message}</p>
-                              <span
-                                className={`text-xs mt-1.5 block ${
-                                  isOwn ? 'text-blue-100' : theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
-                                }`}
-                              >
-                                {formatTime(msg.timestamp)}
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                    <div ref={messagesEndRef} />
-                  </div>
-
-                  {/* Message Input */}
-                  <form onSubmit={sendMessage} className={`p-4 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
-                    {selectedChat.closedByEmployer && user?.role !== 'employer' && (
-                      <div className={`mb-3 p-3 rounded-xl border ${theme === 'dark' ? 'bg-red-900/20 border-red-800 text-red-400' : 'bg-red-50 border-red-200 text-red-800'}`}>
-                        <p className="text-sm flex items-center gap-2">
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                          </svg>
-                          This conversation has been closed by the employer.
-                        </p>
-                      </div>
-                    )}
-                    {selectedChat.closedByEmployer && user?.role === 'employer' && (
-                      <div className={`mb-3 p-3 rounded-xl border ${theme === 'dark' ? 'bg-orange-900/20 border-orange-800 text-orange-400' : 'bg-orange-50 border-orange-200 text-orange-800'}`}>
-                        <p className="text-sm flex items-center gap-2">
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          Chat closed. Only you can send messages.
-                        </p>
-                      </div>
-                    )}
-                    <div className="flex gap-3">
-                      <input
-                        type="text"
-                        value={message}
-                        onChange={(e) => setMessage(e.target.value)}
-                        placeholder={selectedChat.closedByEmployer && user?.role !== 'employer' ? 'Chat is closed' : 'Type a message...'}
-                        className={`flex-1 px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed ${
-                          theme === 'dark' 
-                            ? 'border-gray-600 bg-gray-700 text-white' 
-                            : 'border-gray-300 bg-white text-gray-900'
-                        }`}
-                        disabled={sending || (selectedChat.closedByEmployer && user?.role !== 'employer')}
-                      />
-                      <button
-                        type="submit"
-                        disabled={!message.trim() || sending || (selectedChat.closedByEmployer && user?.role !== 'employer')}
-                        className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                      >
-                        {sending ? 'Sending...' : 'Send'}
-                      </button>
-                    </div>
-                  </form>
-                </>
-              ) : (
-                <div className={`flex-1 flex items-center justify-center ${getSubTextClassName()}`}>
-                  <div className="text-center p-8">
-                    <svg
-                      className={`mx-auto h-16 w-16 mb-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                      />
-                    </svg>
-                    <p className="hidden md:block">Select a conversation to start messaging</p>
-                    <p className="md:hidden">Tap on a conversation to view messages</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+            </motion.div>
+          </AnimatePresence>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex flex-col items-center justify-center h-full p-8 text-center"
+          >
+            <motion.div
+              animate={{ y: [0, -10, 0] }}
+              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+              className="w-24 h-24 rounded-full bg-[#00EA72]/10 flex items-center justify-center mb-6"
+            >
+              <svg className="w-12 h-12 text-[#00EA72]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            </motion.div>
+            <h2 className={`text-xl font-bold ${getTextClassName()} mb-2`}>Select a conversation</h2>
+            <p className={`${getSubTextClassName()} max-w-md`}>
+              Choose a conversation from the sidebar to start messaging
+            </p>
+          </motion.div>
+        )}
       </div>
+
+      {/* Close/Reopen Chat Modal */}
+      <AnimatePresence>
+        {showCloseModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => !closingChat && setShowCloseModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className={`${getCardClassName()} rounded-3xl shadow-2xl p-8 max-w-md w-full`}
+            >
+              <div className="text-center">
+                <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
+                  closeAction === 'close' ? 'bg-red-100' : 'bg-green-100'
+                }`}>
+                  {closeAction === 'close' ? (
+                    <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  ) : (
+                    <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
+                
+                <h3 className={`text-xl font-bold ${getTextClassName()} mb-2`}>
+                  {closeAction === 'close' ? 'Close Conversation?' : 'Reopen Conversation?'}
+                </h3>
+                
+                <p className={`text-sm ${getSubTextClassName()} mb-6`}>
+                  {closeAction === 'close' 
+                    ? 'The applicant will not be able to send messages anymore. You can reopen this chat later.'
+                    : 'The applicant will be able to send messages again.'
+                  }
+                </p>
+
+                {closingChat ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <svg className="w-12 h-12 animate-spin text-[#00EA72]" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    <p className={`text-sm ${getSubTextClassName()}`}>
+                      {closeAction === 'close' ? 'Closing...' : 'Reopening...'}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setShowCloseModal(false)}
+                      className={`flex-1 px-4 py-3 rounded-full font-semibold transition-all ${
+                        theme === 'dark'
+                          ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                          : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                      }`}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={confirmCloseChat}
+                      className={`flex-1 px-4 py-3 rounded-full font-semibold transition-all shadow-lg hover:shadow-xl ${
+                        closeAction === 'close'
+                          ? 'bg-red-500 hover:bg-red-600 text-white'
+                          : 'bg-[#00EA72] hover:bg-[#00D66C] text-black'
+                      }`}
+                    >
+                      {closeAction === 'close' ? 'Close Chat' : 'Reopen Chat'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

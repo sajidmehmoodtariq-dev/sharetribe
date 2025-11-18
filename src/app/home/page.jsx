@@ -29,15 +29,13 @@ export default function HomePage() {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [showProfile, setShowProfile] = useState(false);
-  const [showSavedProjects, setShowSavedProjects] = useState(false);
-  const [showFavouriteJobs, setShowFavouriteJobs] = useState(false);
-  const [showMyNetwork, setShowMyNetwork] = useState(false);
   const [showLiveChat, setShowLiveChat] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [businessSearchQuery, setBusinessSearchQuery] = useState('');
   const [businessLocation, setBusinessLocation] = useState('');
   const [sortBy, setSortBy] = useState('Relevance');
-  const [favoriteJobs, setFavoriteJobs] = useState(new Set([1, 2])); // Job IDs 1 and 2 are favorited by default
+  const [favoriteJobs, setFavoriteJobs] = useState(new Set()); // Start with empty set, will be populated from backend
+  const [favoriteLoadingJobs, setFavoriteLoadingJobs] = useState(new Set()); // Track which jobs are being favorited
   const [connectionSearchQuery, setConnectionSearchQuery] = useState('');
   const [sortConnectionsBy, setSortConnectionsBy] = useState('Alphabetical');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -163,7 +161,7 @@ export default function HomePage() {
   }, [user]);
 
   const fetchSavedJobs = async () => {
-    if (!user || user.role !== 'jobSeeker') return;
+    if (!user || (user.role !== 'jobSeeker' && user.role !== 'employee')) return;
     
     try {
       const token = localStorage.getItem('token');
@@ -178,8 +176,12 @@ export default function HomePage() {
         const data = await response.json();
         const jobs = data.savedJobs || [];
         setSavedJobs(jobs);
+        // Update favoriteJobs with the IDs of saved jobs
         const savedJobIds = jobs.map(job => job._id);
         setFavoriteJobs(new Set(savedJobIds));
+        console.log('Saved jobs fetched:', jobs.length, 'Job IDs:', savedJobIds);
+      } else {
+        console.error('Failed to fetch saved jobs:', response.status);
       }
     } catch (error) {
       console.error('Error fetching saved jobs:', error);
@@ -553,14 +555,19 @@ export default function HomePage() {
       return;
     }
 
+    // Add to loading set
+    setFavoriteLoadingJobs(prev => new Set([...prev, jobId]));
+
     try {
       const token = localStorage.getItem('token');
       const isFavorited = favoriteJobs.has(jobId);
       
+      console.log(`Toggling favorite for job ${jobId}. Currently favorited: ${isFavorited}`);
+      
       // Call API to save/unsave job
       const endpoint = isFavorited ? 'unsave' : 'save';
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/jobs/${endpoint}`,
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/jobs/${jobId}/${endpoint}`,
         {
           method: 'POST',
           headers: {
@@ -568,7 +575,6 @@ export default function HomePage() {
             'Authorization': `Bearer ${token}`,
           },
           body: JSON.stringify({ 
-            jobId: jobId,
             userId: user._id 
           }),
         }
@@ -579,14 +585,20 @@ export default function HomePage() {
         throw new Error(error.error || 'Failed to update saved job');
       }
 
+      const result = await response.json();
+      console.log('Toggle favorite result:', result);
+
       // Update local state
       setFavoriteJobs(prev => {
         const newFavorites = new Set(prev);
         if (isFavorited) {
           newFavorites.delete(jobId);
+          console.log(`Removed ${jobId} from favorites`);
         } else {
           newFavorites.add(jobId);
+          console.log(`Added ${jobId} to favorites`);
         }
+        console.log('Updated favorite jobs:', Array.from(newFavorites));
         return newFavorites;
       });
 
@@ -597,6 +609,13 @@ export default function HomePage() {
     } catch (error) {
       console.error('Error toggling favorite:', error);
       alert(error.message || 'Failed to save job. Please try again.');
+    } finally {
+      // Remove from loading set
+      setFavoriteLoadingJobs(prev => {
+        const newLoading = new Set(prev);
+        newLoading.delete(jobId);
+        return newLoading;
+      });
     }
   };
 
@@ -823,9 +842,6 @@ export default function HomePage() {
               onClick={() => {
                 // Reset all states to return to homepage
                 setShowProfile(false);
-                setShowSavedProjects(false);
-                setShowFavouriteJobs(false);
-                setShowMyNetwork(false);
                 setShowLiveChat(false);
                 setShowSettings(false);
                 setActiveTab('Search Jobs');
@@ -856,9 +872,6 @@ export default function HomePage() {
             <button className="p-2" onClick={() => {
               setShowLiveChat(true);
               setShowProfile(false);
-              setShowSavedProjects(false);
-              setShowFavouriteJobs(false);
-              setShowMyNetwork(false);
               setShowSettings(false);
             }}>
               <Bell className={`w-6 h-6 ${getTextClassName()}`} />
@@ -875,9 +888,6 @@ export default function HomePage() {
             <button className="p-2" onClick={() => {
               setShowSettings(true);
               setShowProfile(false);
-              setShowSavedProjects(false);
-              setShowFavouriteJobs(false);
-              setShowMyNetwork(false);
               setShowLiveChat(false);
             }}>
               <Menu className={`w-6 h-6 ${getTextClassName()}`} />
@@ -1003,36 +1013,6 @@ export default function HomePage() {
                     My Profile Card
                   </motion.button>
                   
-                  <motion.button 
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.2 }}
-                    whileHover={{ scale: 1.02, x: 5 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => {
-                      setShowSettings(false);
-                      setShowMyNetwork(true);
-                    }}
-                    className={`w-full text-left p-4 rounded-lg hover:bg-gray-50 ${getTextClassName()}`}
-                  >
-                    My Network
-                  </motion.button>
-                  
-                  <motion.button 
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.25 }}
-                    whileHover={{ scale: 1.02, x: 5 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => {
-                      setShowSettings(false);
-                      setShowFavouriteJobs(true);
-                    }}
-                    className={`w-full text-left p-4 rounded-lg hover:bg-gray-50 ${getTextClassName()}`}
-                  >
-                    Favourite Jobs
-                  </motion.button>
-                  
                   <div className={`border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} my-2`}></div>
                   
                   <motion.button 
@@ -1139,7 +1119,7 @@ export default function HomePage() {
                   transition={{ delay: 0.2 }}
                   className="flex space-x-6 border-b border-gray-200 overflow-x-auto"
                 >
-                  {['Profile', 'Favourite Jobs', 'Saved Projects', 'My Network'].map((tab, index) => (
+                  {['Profile'].map((tab, index) => (
                     <motion.button
                       key={tab}
                       initial={{ opacity: 0, y: -10 }}
@@ -1147,23 +1127,6 @@ export default function HomePage() {
                       transition={{ delay: 0.3 + (index * 0.05) }}
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      onClick={() => {
-                        if (tab === 'Saved Projects') {
-                          setShowProfile(false);
-                          setShowFavouriteJobs(false);
-                          setShowSavedProjects(true);
-                        } else if (tab === 'Favourite Jobs') {
-                          setShowProfile(false);
-                          setShowSavedProjects(false);
-                          setShowMyNetwork(false);
-                          setShowFavouriteJobs(true);
-                        } else if (tab === 'My Network') {
-                          setShowProfile(false);
-                          setShowSavedProjects(false);
-                          setShowFavouriteJobs(false);
-                          setShowMyNetwork(true);
-                        }
-                      }}
                       className={`pb-2 text-sm font-medium whitespace-nowrap ${
                         index === 0 
                           ? `${getTextClassName()} border-b-2 border-[#00EA72]` 
@@ -1251,260 +1214,6 @@ export default function HomePage() {
                   </div>
                 )}
               </motion.div>
-            ) : showSavedProjects ? (
-              /* Saved Projects Content */
-              <div className="space-y-6">
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                  <h2 className={`text-lg font-semibold ${getTextClassName()}`}>Saved Projects</h2>
-                </div>
-
-                {/* Tabs */}
-                <div className="flex space-x-6 border-b border-gray-200 overflow-x-auto">
-                  {['Profile', 'Favourite Jobs', 'Saved Projects', 'My Network'].map((tab, index) => (
-                    <button
-                      key={tab}
-                      onClick={() => {
-                        if (tab === 'Profile') {
-                          setShowSavedProjects(false);
-                          setShowFavouriteJobs(false);
-                          setShowMyNetwork(false);
-                          setShowProfile(true);
-                        } else if (tab === 'Favourite Jobs') {
-                          setShowSavedProjects(false);
-                          setShowProfile(false);
-                          setShowMyNetwork(false);
-                          setShowFavouriteJobs(true);
-                        } else if (tab === 'My Network') {
-                          setShowSavedProjects(false);
-                          setShowProfile(false);
-                          setShowFavouriteJobs(false);
-                          setShowMyNetwork(true);
-                        }
-                      }}
-                      className={`pb-2 text-sm font-medium whitespace-nowrap ${
-                        index === 2 
-                          ? `${getTextClassName()} border-b-2 border-[#00EA72]` 
-                          : `${getSubTextClassName()}`
-                      }`}
-                    >
-                      {tab}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Advanced Filters */}
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-3">
-                    <button 
-                      onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                      className={`text-[14px] font-medium ${getTextClassName()} flex items-center space-x-1`}
-                    >
-                      <span>Advanced Filters</span>
-                      <svg className={`w-3 h-3 transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                    <button className={`text-[12px] ${getSubTextClassName()}`}>
-                      Reset all filters
-                    </button>
-                  </div>
-                  
-                  <p className={`text-[12px] ${getSubTextClassName()} mb-3`}>
-                    Narrow searches with these additional fields
-                  </p>
-
-                  {/* Filter Buttons */}
-                  <div className="flex space-x-2">
-                    <button className="px-4 py-2 rounded-full border border-gray-300 text-gray-700 text-[12px] font-medium flex items-center space-x-1">
-                      <span>Industry Type</span>
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                    <button className="px-4 py-2 rounded-full border border-gray-300 text-gray-700 text-[12px] font-medium flex items-center space-x-1">
-                      <span>Main Role</span>
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                    <button className="px-4 py-2 rounded-full border border-gray-300 text-gray-700 text-[12px] font-medium flex items-center space-x-1">
-                      <span>Main Skills</span>
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : showFavouriteJobs ? (
-              /* Favourite Jobs Content */
-              <div className="space-y-6">
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                  <h2 className={`text-lg font-semibold ${getTextClassName()}`}>Favourite Jobs</h2>
-                </div>
-
-                {/* Tabs */}
-                <div className="flex space-x-6 border-b border-gray-200 overflow-x-auto">
-                  {['Profile', 'Favourite Jobs', 'Saved Projects', 'My Network'].map((tab, index) => (
-                    <button
-                      key={tab}
-                      onClick={() => {
-                        if (tab === 'Profile') {
-                          setShowFavouriteJobs(false);
-                          setShowSavedProjects(false);
-                          setShowMyNetwork(false);
-                          setShowProfile(true);
-                        } else if (tab === 'Saved Projects') {
-                          setShowFavouriteJobs(false);
-                          setShowProfile(false);
-                          setShowMyNetwork(false);
-                          setShowSavedProjects(true);
-                        } else if (tab === 'My Network') {
-                          setShowFavouriteJobs(false);
-                          setShowProfile(false);
-                          setShowSavedProjects(false);
-                          setShowMyNetwork(true);
-                        }
-                      }}
-                      className={`pb-2 text-sm font-medium whitespace-nowrap ${
-                        index === 1 
-                          ? `${getTextClassName()} border-b-2 border-[#00EA72]` 
-                          : `${getSubTextClassName()}`
-                      }`}
-                    >
-                      {tab}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Advanced Filters */}
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-3">
-                    <button 
-                      onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                      className={`text-[14px] font-medium ${getTextClassName()} flex items-center space-x-1`}
-                    >
-                      <span>Advanced Filters</span>
-                      <svg className={`w-3 h-3 transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                    <button className={`text-[12px] ${getSubTextClassName()}`}>
-                      Reset all filters
-                    </button>
-                  </div>
-                  
-                  <p className={`text-[12px] ${getSubTextClassName()} mb-3`}>
-                    Narrow searches with these additional fields
-                  </p>
-
-                  {/* Filter Buttons */}
-                  <div className="flex space-x-2">
-                    <button className="px-4 py-2 rounded-full border border-gray-300 text-gray-700 text-[12px] font-medium flex items-center space-x-1">
-                      <span>Industry Type</span>
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                    <button className="px-4 py-2 rounded-full border border-gray-300 text-gray-700 text-[12px] font-medium flex items-center space-x-1">
-                      <span>Main Role</span>
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                    <button className="px-4 py-2 rounded-full border border-gray-300 text-gray-700 text-[12px] font-medium flex items-center space-x-1">
-                      <span>Main Skills</span>
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Job Card Favourited */}
-                <div className="bg-[#E8F5E8] p-1 rounded-lg">
-                  <div className="flex items-center justify-center py-2">
-                    <span className="text-[#00EA72] text-xs font-medium">★ Job Card Favourited</span>
-                  </div>
-                </div>
-
-                {/* Job Listings */}
-                <div className="space-y-3">
-                  {jobListings.filter(job => favoriteJobs.has(job.id)).map((job) => (
-                    <div key={job.id} className={`${getCardClassName()} rounded-lg p-4 shadow-sm border ${theme === 'dark' ? 'border-gray-700' : 'border-gray-100'}`}>
-                      {/* Job Header */}
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 bg-gray-900 rounded-full flex items-center justify-center">
-                            <User className="w-4 h-4 text-white" />
-                          </div>
-                          <div>
-                            <h3 className={`font-semibold text-[13px] ${getTextClassName()}`}>{job.title}</h3>
-                            <p className={`text-[11px] ${getSubTextClassName()}`}>{job.company}</p>
-                            <div className={`flex items-center space-x-2 text-[10px] ${getSubTextClassName()} mt-1`}>
-                              <span>{job.address}</span>
-                              <span>•</span>
-                              <span>{job.schedule}</span>
-                              <span>•</span>
-                              <span className="bg-gray-100 px-2 py-0.5 rounded-full">{job.type}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <button 
-                          onClick={() => toggleFavorite(job.id)}
-                          className="text-[#00EA72] text-xs font-medium"
-                        >
-                          ★ Favourited
-                        </button>
-                      </div>
-
-                      {/* Job Description */}
-                      <p className={`text-[11px] ${getSubTextClassName()} mb-3 leading-relaxed`}>
-                        {job.description}
-                      </p>
-
-                      {/* Skills Required */}
-                      <div className="mb-3">
-                        <h4 className={`font-semibold text-[11px] ${getTextClassName()} mb-2`}>Skills Required</h4>
-                        <div className="flex flex-wrap gap-1">
-                          {job.skillsRequired.map((skill, index) => (
-                            <span key={index} className="bg-[#00EA72] text-white px-2 py-1 rounded-full text-[10px] font-medium">
-                              {skill}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Essential Licenses */}
-                      <div className="mb-3">
-                        <h4 className={`font-semibold text-[11px] ${getTextClassName()} mb-2`}>Essential Licences</h4>
-                        <div className="space-y-1">
-                          {job.essentialLicenses.map((license, index) => (
-                            <div key={index} className="flex items-center space-x-2">
-                              <div className="w-1.5 h-1.5 bg-[#00EA72] rounded-full"></div>
-                              <span className={`text-[10px] ${getSubTextClassName()}`}>{license}</span>
-                            </div>
-                          ))}
-                        </div>
-                        <p className={`text-[9px] ${getSubTextClassName()} mt-2`}>MR Class</p>
-                      </div>
-
-                      {/* Footer */}
-                      <div className="flex items-center justify-between">
-                        <span className={`text-[10px] ${getSubTextClassName()}`}>Posted {job.postedTime}</span>
-                        {job.isLiveChat && (
-                          <div className="flex items-center space-x-1">
-                            <span className={`text-[10px] ${getSubTextClassName()}`}>Live Chat</span>
-                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
             ) : (
               /* Original Job Search Content */
               <>
@@ -1916,6 +1625,7 @@ export default function HomePage() {
                         const isApplication = job.jobId && job.applicantId;
                         const jobData = isApplication ? job.jobId : job;
                         const jobId = jobData._id || jobData.id || job._id;
+                        const isClosed = jobData.status === 'closed' || !jobData.isActive;
                         
                         return (
                         <motion.div 
@@ -1923,14 +1633,24 @@ export default function HomePage() {
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ duration: 0.4, delay: index * 0.05 }}
-                          whileHover={{ scale: 1.02, boxShadow: '0 10px 30px rgba(0, 234, 114, 0.15)' }}
-                          className={`border rounded-3xl p-4 ${getCardClassName()} shadow-sm ${theme === 'dark' ? 'border-gray-700' : 'border-gray-300'} cursor-pointer`}
+                          whileHover={{ scale: isClosed ? 1 : 1.02, boxShadow: isClosed ? 'none' : '0 10px 30px rgba(0, 234, 114, 0.15)' }}
+                          className={`border rounded-3xl p-4 ${getCardClassName()} shadow-sm ${theme === 'dark' ? 'border-gray-700' : 'border-gray-300'} ${
+                            isClosed ? 'opacity-60 grayscale cursor-not-allowed' : 'cursor-pointer'
+                          }`}
                         >
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex-1 min-w-0">
                           <h4 className={`font-semibold text-[14px] ${getTextClassName()} mb-1 truncate`}>
                             {jobData.jobDetails?.jobTitle || jobData.jobTitle || jobData.title || 'Job Title'}
                           </h4>
+                            {/* Show Job Closed badge for closed jobs in applications */}
+                            {isApplication && isClosed && (
+                              <div className="mb-2">
+                                <span className="px-2 py-1 text-[10px] rounded-full bg-red-500 text-white font-semibold">
+                                  Job Closed
+                                </span>
+                              </div>
+                            )}
                             {/* Show application status for job seekers */}
                             {isApplication && job.status && (
                               <div className="mb-2">
@@ -2014,28 +1734,30 @@ export default function HomePage() {
                               </motion.button>
                             </>
                           ) : (user?.role === 'jobSeeker' || user?.role === 'employee') ? (
-                            <>
-                              <motion.button 
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                onClick={() => handleRequestChat(jobId)}
-                                className="px-3 py-1 bg-[#00EA72] hover:bg-[#00D66C] text-black text-[11px] font-semibold rounded-full transition-colors"
-                                title="Request to chat with employer"
-                              >
-                                Request
-                              </motion.button>
-                              <motion.button 
-                                whileHover={{ scale: 1.2 }}
-                                whileTap={{ scale: 0.9 }}
-                                onClick={() => toggleFavorite(jobId)}
-                                className="p-1"
-                                title="Save Job"
-                              >
-                                <svg className={`w-5 h-5 ${favoriteJobs.has(jobId) ? 'text-red-500' : 'text-gray-400'}`} fill="currentColor" viewBox="0 0 24 24">
+                            <motion.button 
+                              whileHover={{ scale: favoriteLoadingJobs.has(jobId) ? 1 : 1.2 }}
+                              whileTap={{ scale: favoriteLoadingJobs.has(jobId) ? 1 : 0.9 }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (!favoriteLoadingJobs.has(jobId)) {
+                                  toggleFavorite(jobId);
+                                }
+                              }}
+                              className="p-1 relative"
+                              disabled={favoriteLoadingJobs.has(jobId)}
+                              title={favoriteLoadingJobs.has(jobId) ? 'Loading...' : (favoriteJobs.has(jobId) ? 'Remove from favorites' : 'Add to favorites')}
+                            >
+                              {favoriteLoadingJobs.has(jobId) ? (
+                                <svg className="w-5 h-5 text-gray-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                              ) : (
+                                <svg className={`w-5 h-5 transition-colors ${favoriteJobs.has(jobId) ? 'text-red-500' : 'text-gray-400 hover:text-red-300'}`} fill="currentColor" viewBox="0 0 24 24">
                                   <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
                                 </svg>
-                              </motion.button>
-                            </>
+                              )}
+                            </motion.button>
                           ) : null}
                         </div>
                       </div>
@@ -2097,12 +1819,13 @@ export default function HomePage() {
 
                       {/* View Details Button */}
                       <motion.button
-                        whileHover={{ scale: 1.03 }}
-                        whileTap={{ scale: 0.97 }}
-                        onClick={() => router.push(`/job/${jobId}`)}
-                        className="w-full bg-[#00EA72] hover:bg-[#00D66C] text-black font-medium text-[13px] py-2 rounded-full transition-colors"
+                        whileHover={{ scale: isClosed ? 1 : 1.03 }}
+                        whileTap={{ scale: isClosed ? 1 : 0.97 }}
+                        onClick={() => !isClosed && router.push(`/job/${jobId}`)}
+                        disabled={isClosed && isApplication}
+                        className={`w-full ${isClosed && isApplication ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#00EA72] hover:bg-[#00D66C]'} text-black font-medium text-[13px] py-2 rounded-full transition-colors`}
                       >
-                        View Details
+                        {isClosed && isApplication ? 'Job Closed' : 'View Details'}
                       </motion.button>
                     </motion.div>
                         );
