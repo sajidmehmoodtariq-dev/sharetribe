@@ -1,5 +1,6 @@
 const Job = require('../models/Job');
 const User = require('../models/User');
+const notificationController = require('./notificationController');
 
 // Create a new job (Initialize job creation)
 exports.createJob = async (req, res) => {
@@ -438,6 +439,13 @@ exports.closeJob = async (req, res) => {
     job.lastModified = new Date();
     
     await job.save();
+
+    // Send notifications to all applicants about job closure
+    const allApplications = await Application.find({ jobId: jobId });
+    const allApplicantIds = allApplications.map(app => app.applicantId);
+    if (allApplicantIds.length > 0) {
+      await notificationController.notifyJobClosed(job, allApplicantIds);
+    }
 
     res.status(200).json({
       success: true,

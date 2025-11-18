@@ -119,14 +119,17 @@ export default function SubscriptionPage() {
 
       // Store token
       localStorage.setItem('token', data.token);
+      
+      // Set flag to show payment banner
+      localStorage.setItem('showPaymentBanner', 'true');
 
       // Clear session storage
       sessionStorage.removeItem('signupData');
       sessionStorage.removeItem('selectedGoal');
       sessionStorage.removeItem('userRole');
 
-      // Navigate to personal details onboarding
-      router.push('/onboarding/personal-details');
+      // Navigate directly to home with limited access
+      router.push('/home');
     } catch (error) {
       console.error('Error:', error);
       alert(error.message || 'Something went wrong. Please try again.');

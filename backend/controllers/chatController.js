@@ -1,6 +1,7 @@
 const Chat = require('../models/Chat');
 const Job = require('../models/Job');
 const User = require('../models/User');
+const notificationController = require('./notificationController');
 
 // Get or create a chat between job seeker and employer for a specific job
 exports.getOrCreateChat = async (req, res) => {
@@ -187,6 +188,19 @@ exports.sendMessage = async (req, res) => {
       .populate('employerId', 'fullName email')
       .populate('jobSeekerId', 'fullName email');
 
+    // Send notification to recipient
+    const recipientId = userRole === 'employer' ? chat.jobSeekerId : chat.employerId;
+    const sender = await User.findById(userId);
+    const jobTitle = chat.jobId?.jobDetails?.jobTitle || 'a job';
+    
+    await notificationController.notifyNewMessage(
+      chatId,
+      userId,
+      sender?.fullName || 'Someone',
+      recipientId,
+      jobTitle
+    );
+
     res.json({ chat: updatedChat });
   } catch (error) {
     console.error('Error in sendMessage:', error);
@@ -362,6 +376,14 @@ exports.closeChat = async (req, res) => {
       .populate('employerId', 'fullName email')
       .populate('jobSeekerId', 'fullName email');
 
+    // Notify job seeker about chat closure
+    const jobTitle = updatedChat.jobId?.jobDetails?.jobTitle || 'a job';
+    await notificationController.notifyChatClosed(
+      chatId,
+      chat.jobSeekerId,
+      jobTitle
+    );
+
     res.json({ 
       message: 'Chat closed successfully',
       chat: updatedChat 
@@ -408,6 +430,14 @@ exports.reopenChat = async (req, res) => {
       .populate('jobId', 'jobDetails.jobTitle jobDetails.businessName')
       .populate('employerId', 'fullName email')
       .populate('jobSeekerId', 'fullName email');
+
+    // Notify job seeker about chat reopening
+    const jobTitle = updatedChat.jobId?.jobDetails?.jobTitle || 'a job';
+    await notificationController.notifyChatReopened(
+      chatId,
+      chat.jobSeekerId,
+      jobTitle
+    );
 
     res.json({ 
       message: 'Chat reopened successfully',

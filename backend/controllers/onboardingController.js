@@ -33,8 +33,49 @@ exports.updatePersonalDetails = async (req, res) => {
     let token;
     let isNewUser = false;
 
+    // Check if user is already authenticated (has valid token)
+    let authenticatedUserId = null;
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      try {
+        const jwt = require('jsonwebtoken');
+        const tokenValue = req.headers.authorization.split(' ')[1];
+        const decoded = jwt.verify(tokenValue, process.env.JWT_SECRET || 'your-secret-key-change-in-production');
+        authenticatedUserId = decoded.id;
+      } catch (err) {
+        // Token invalid, treat as new user
+        authenticatedUserId = null;
+      }
+    }
+
+    // If user is authenticated, update their profile
+    if (authenticatedUserId) {
+      user = await User.findByIdAndUpdate(
+        authenticatedUserId,
+        {
+          $set: {
+            fullName,
+            mobileNumber,
+            'personalDetails.dateOfBirth': dateOfBirth,
+            'personalDetails.address': address,
+            'personalDetails.profileImage': profileImage,
+            'personalDetails.showEmailOnProfile': showEmailOnProfile ?? true,
+            'personalDetails.showMobileOnProfile': showMobileOnProfile ?? true,
+            'onboarding.personalDetailsCompleted': true,
+            'onboarding.currentStep': 2,
+          },
+        },
+        { new: true, runValidators: true }
+      ).select('-password');
+
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      // Return existing token (user is already authenticated)
+      token = req.headers.authorization.split(' ')[1];
+    }
     // If we have email and password, this is the first save - create user
-    if (email && password) {
+    else if (email && password) {
       // Check if user exists
       const existingUser = await User.findOne({ email: email.toLowerCase() });
       
@@ -68,28 +109,7 @@ exports.updatePersonalDetails = async (req, res) => {
       // Generate token
       token = generateToken(user._id);
     } else {
-      // User already exists and is authenticated, just update
-      user = await User.findByIdAndUpdate(
-        req.user.id,
-        {
-          $set: {
-            fullName,
-            mobileNumber,
-            'personalDetails.dateOfBirth': dateOfBirth,
-            'personalDetails.address': address,
-            'personalDetails.profileImage': profileImage,
-            'personalDetails.showEmailOnProfile': showEmailOnProfile,
-            'personalDetails.showMobileOnProfile': showMobileOnProfile,
-            'onboarding.personalDetailsCompleted': true,
-            'onboarding.currentStep': 2,
-          },
-        },
-        { new: true, runValidators: true }
-      ).select('-password');
-
-      if (!user) {
-        return res.status(404).json({ error: 'User not found' });
-      }
+      return res.status(400).json({ error: 'Missing required authentication or signup data' });
     }
 
     // Remove password from response

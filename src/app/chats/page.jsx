@@ -20,6 +20,7 @@ export default function ChatsPage() {
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [chatToClose, setChatToClose] = useState(null);
   const [closeAction, setCloseAction] = useState('close'); // 'close' or 'reopen'
+  const [hasAutoSelected, setHasAutoSelected] = useState(false);
   const messagesEndRef = useRef(null);
   const pollingIntervalRef = useRef(null);
   const router = useRouter();
@@ -51,9 +52,9 @@ export default function ChatsPage() {
     };
   }, []);
 
-  // Handle chatId or jobId from URL query params
+  // Handle chatId or jobId from URL query params - only run once
   useEffect(() => {
-    if (chats.length > 0 && typeof window !== 'undefined') {
+    if (chats.length > 0 && !hasAutoSelected && typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const chatId = params.get('chatId');
       const jobId = params.get('jobId');
@@ -62,16 +63,18 @@ export default function ChatsPage() {
         const chat = chats.find(c => c._id === chatId);
         if (chat) {
           selectChat(chat);
+          setHasAutoSelected(true);
         }
       } else if (jobId) {
         // Select first chat for this job
         const chat = chats.find(c => c.jobId?._id === jobId);
         if (chat) {
           selectChat(chat);
+          setHasAutoSelected(true);
         }
       }
     }
-  }, [chats]);
+  }, [chats, hasAutoSelected]);
 
   useEffect(() => {
     scrollToBottom();

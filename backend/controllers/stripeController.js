@@ -16,6 +16,41 @@ const PACKAGES = {
       support: '24/7',
       mobileApp: true
     }
+  },
+  'basic': {
+    name: 'Basic Plan',
+    price: 29.00,
+    features: {
+      jobPosts: 5,
+      applicantTracking: 'basic',
+      emailNotifications: true,
+      support: 'standard'
+    }
+  },
+  'pro': {
+    name: 'Pro Plan',
+    price: 59.00,
+    features: {
+      jobPosts: 'unlimited',
+      applicantTracking: 'advanced',
+      prioritySupport: true,
+      analytics: true,
+      customBranding: true,
+      apiAccess: true
+    }
+  },
+  'enterprise': {
+    name: 'Enterprise Plan',
+    price: 99.00,
+    features: {
+      jobPosts: 'unlimited',
+      applicantTracking: 'advanced',
+      dedicatedAccountManager: true,
+      customIntegrations: true,
+      whiteLabel: true,
+      slaGuarantee: true,
+      phoneSupport: true
+    }
   }
 };
 
@@ -30,30 +65,55 @@ exports.createCheckoutSession = async (req, res) => {
       return res.status(400).json({ error: 'Invalid package selected' });
     }
 
-    if (!email || !password || !fullName) {
-      return res.status(400).json({ error: 'Missing required signup information' });
-    }
-
-    // Check if user already exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ error: 'Email already registered' });
+    if (!email || !fullName) {
+      return res.status(400).json({ error: 'Missing required information' });
     }
 
     const package = PACKAGES[packageId];
+    let stripeCustomerId;
+    let userId;
+    let isExistingUser = false;
 
-    // Create Stripe customer
-    const customer = await stripe.customers.create({
-      email: email,
-      name: fullName,
-      metadata: {
-        signupEmail: email,
-        fullName: fullName,
-        role: role || 'employee',
-        selectedGoal: selectedGoal || ''
+    // Check if user already exists
+    const existingUser = await User.findOne({ email });
+    
+    if (existingUser) {
+      // User exists, just create checkout for subscription
+      isExistingUser = true;
+      userId = existingUser._id;
+      
+      // Use existing Stripe customer or create new one
+      if (existingUser.subscriptionCustomerId) {
+        stripeCustomerId = existingUser.subscriptionCustomerId;
+      } else {
+        const customer = await stripe.customers.create({
+          email: email,
+          name: fullName,
+          metadata: {
+            userId: existingUser._id.toString(),
+            role: existingUser.role
+          }
+        });
+        stripeCustomerId = customer.id;
+        
+        // Save Stripe customer ID to user
+        existingUser.subscriptionCustomerId = stripeCustomerId;
+        await existingUser.save();
       }
-    });
-    const stripeCustomerId = customer.id;
+    } else {
+      // New user - will be created after payment
+      const customer = await stripe.customers.create({
+        email: email,
+        name: fullName,
+        metadata: {
+          signupEmail: email,
+          fullName: fullName,
+          role: role || 'employee',
+          selectedGoal: selectedGoal || ''
+        }
+      });
+      stripeCustomerId = customer.id;
+    }
 
     // Create checkout session
     const session = await stripe.checkout.sessions.create({
@@ -77,13 +137,15 @@ exports.createCheckoutSession = async (req, res) => {
       cancel_url: cancelUrl || `${process.env.FRONTEND_URL}/signup/subscription`,
       metadata: {
         email: email,
-        password: password,
+        password: password || 'existing-user',
         fullName: fullName,
         mobileNumber: mobileNumber || '',
         role: role || 'employee',
         selectedGoal: selectedGoal || '',
         packageId: packageId,
-        stripeCustomerId: stripeCustomerId
+        stripeCustomerId: stripeCustomerId,
+        isExistingUser: isExistingUser.toString(),
+        userId: userId ? userId.toString() : ''
       }
     });
 
@@ -290,10 +352,12 @@ async function handleCheckoutCompleted(session) {
       return;
     }
     
+    const isExistingUser = metadata.isExistingUser === 'true';
+    
     // Check if user already exists
     let user = await User.findOne({ email: metadata.email });
     
-    if (!user) {
+    if (!user && !isExistingUser) {
       console.log('Creating new user account for:', metadata.email);
       // Create new user account
       const bcrypt = require('bcryptjs');
@@ -311,8 +375,15 @@ async function handleCheckoutCompleted(session) {
         isEmailVerified: true
       });
       console.log('User created with ID:', user._id);
+    } else if (user) {
+      console.log('Existing user upgrading subscription:', user._id);
+      // Update existing user's subscription status
+      user.subscriptionCustomerId = metadata.stripeCustomerId || session.customer;
+      user.subscriptionStatus = 'active';
+      await user.save();
     } else {
-      console.log('User already exists:', user._id);
+      console.error('User not found for existing user payment:', metadata.email);
+      return;
     }
 
     // Create subscription record

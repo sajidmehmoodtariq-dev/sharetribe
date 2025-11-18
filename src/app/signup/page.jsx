@@ -14,8 +14,8 @@ export default function SignupPage() {
   const { getBackgroundStyle, getCardClassName, getTextClassName, getSubTextClassName, getInputClassName } = useTheme();
   const router = useRouter();
   const [formData, setFormData] = useState({
-    fullName: 'Sal Monella',
-    email: 'salmonella@gmail.com',
+    fullName: '',
+    email: '',
     mobileNumber: '',
     password: '',
     agreeToTerms: false,

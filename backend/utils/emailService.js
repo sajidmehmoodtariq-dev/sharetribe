@@ -168,7 +168,85 @@ const sendWelcomeEmail = async (email, userName) => {
   }
 };
 
+/**
+ * Send notification email
+ * @param {Object} options - Email options
+ */
+const sendNotificationEmail = async ({ to, name, subject, message, type }) => {
+  try {
+    initializeSendGrid();
+    
+    const typeIcons = {
+      'job_created': '💼',
+      'application_received': '📝',
+      'application_status_changed': '✅',
+      'job_closed': '🔒',
+      'job_assigned': '🎉',
+      'new_message': '💬',
+      'chat_closed': '🔕',
+      'chat_reopened': '🔔',
+      'interview_scheduled': '📅'
+    };
+
+    const icon = typeIcons[type] || '🔔';
+    
+    const msg = {
+      to,
+      from: process.env.SENDGRID_VERIFIED_SENDER || 'lojezilo@fxzig.com',
+      subject: `${icon} ${subject}`,
+      text: `Hello ${name},\n\n${message}\n\nBest regards,\nHead Huntd Team`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>${subject}</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #00EA72 0%, #00D66C 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: #000; margin: 0; font-size: 28px;">${icon} ${subject}</h1>
+          </div>
+          
+          <div style="background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 10px 10px;">
+            <p style="font-size: 16px; margin-bottom: 20px;">Hello <strong>${name}</strong>,</p>
+            
+            <p style="font-size: 16px; margin-bottom: 20px;">
+              ${message}
+            </p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/home" style="display: inline-block; padding: 15px 30px; background: #00EA72; color: #000; text-decoration: none; border-radius: 25px; font-weight: bold; font-size: 16px;">
+                View Details
+              </a>
+            </div>
+            
+            <p style="font-size: 14px; color: #999; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+              Best regards,<br>
+              <strong>Head Huntd Team</strong>
+            </p>
+          </div>
+          
+          <div style="text-align: center; margin-top: 20px; padding: 20px; font-size: 12px; color: #999;">
+            <p>© 2025 Head Huntd. All rights reserved.</p>
+            <p>This is an automated notification.</p>
+          </div>
+        </body>
+        </html>
+      `,
+    };
+
+    await sgMail.send(msg);
+    console.log(`Notification email sent to ${to}`);
+    return { success: true };
+  } catch (error) {
+    console.error('Error sending notification email:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   sendPasswordResetEmail,
   sendWelcomeEmail,
+  sendNotificationEmail,
 };

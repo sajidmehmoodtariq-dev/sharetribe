@@ -1,6 +1,7 @@
 const Application = require('../models/Application');
 const Job = require('../models/Job');
 const User = require('../models/User');
+const notificationController = require('./notificationController');
 
 // Apply for a job
 exports.applyForJob = async (req, res) => {
@@ -38,6 +39,16 @@ exports.applyForJob = async (req, res) => {
 
     // Increment job application count
     await Job.findByIdAndUpdate(jobId, { $inc: { totalApplications: 1 } });
+
+    // Get applicant details
+    const applicant = await User.findById(applicantId);
+
+    // Notify employer about new application
+    await notificationController.notifyNewApplication(application._id, {
+      jobId,
+      jobTitle: job.jobDetails?.jobTitle,
+      applicantName: applicant.fullName
+    }, job.employerId);
 
     res.status(201).json({
       success: true,
@@ -193,6 +204,27 @@ exports.updateApplicationStatus = async (req, res) => {
     }
 
     await application.save();
+
+    // Get job details for notification
+    const job = await Job.findById(application.jobId);
+    
+    // Notify applicant about status change
+    await notificationController.notifyApplicationStatusChange({
+      _id: application._id,
+      jobId: application.jobId,
+      jobTitle: job?.jobDetails?.jobTitle,
+      status: application.status
+    }, application.applicantId);
+
+    // If assigned, notify about job assignment
+    if (status === 'accepted') {
+      await notificationController.notifyJobAssigned(
+        application.jobId,
+        job?.jobDetails?.jobTitle,
+        application.applicantId,
+        application.employerId
+      );
+    }
 
     res.status(200).json({
       success: true,

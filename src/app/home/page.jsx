@@ -31,6 +31,9 @@ export default function HomePage() {
   const [showProfile, setShowProfile] = useState(false);
   const [showLiveChat, setShowLiveChat] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [businessSearchQuery, setBusinessSearchQuery] = useState('');
   const [businessLocation, setBusinessLocation] = useState('');
   const [sortBy, setSortBy] = useState('Relevance');
@@ -53,6 +56,9 @@ export default function HomePage() {
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showPaymentBanner, setShowPaymentBanner] = useState(false);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
   const [jobToDelete, setJobToDelete] = useState(null);
   const [showEditJobModal, setShowEditJobModal] = useState(false);
   const [editingJob, setEditingJob] = useState(null);
@@ -109,6 +115,13 @@ export default function HomePage() {
           const data = await response.json();
           setUser(data.user);
           
+          // Check if payment banner should be shown based on subscription status
+          const hasPaymentBannerFlag = localStorage.getItem('showPaymentBanner') === 'true';
+          const hasActiveSubscription = data.user.subscriptionStatus === 'active';
+          
+          // Show banner if flag is set OR user doesn't have active subscription
+          setShowPaymentBanner(hasPaymentBannerFlag || !hasActiveSubscription);
+          
           // Set initial tab based on role
           if (data.user.role === 'employer') {
             setActiveTab('My Jobs');
@@ -148,6 +161,60 @@ export default function HomePage() {
 
     fetchUser();
   }, [router]);
+
+  // Handle payment success/cancel from URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentStatus = urlParams.get('payment');
+    
+    if (paymentStatus === 'success') {
+      // Remove payment banner
+      localStorage.removeItem('showPaymentBanner');
+      setShowPaymentBanner(false);
+      // Show success message
+      alert('Payment successful! Welcome to your premium subscription.');
+      // Clean URL
+      window.history.replaceState({}, '', '/home');
+      // Refresh user data to get updated subscription status
+      window.location.reload();
+    } else if (paymentStatus === 'cancelled') {
+      alert('Payment was cancelled. You can subscribe anytime from the payment banner.');
+      // Clean URL
+      window.history.replaceState({}, '', '/home');
+    }
+  }, []);
+
+  // Fetch notifications
+  const fetchNotifications = async () => {
+    if (!user) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/notifications`,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setNotifications(data.notifications || []);
+        setUnreadCount(data.unreadCount || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  };
+
+  // Poll notifications every 30 seconds
+  useEffect(() => {
+    if (user) {
+      fetchNotifications();
+      const interval = setInterval(fetchNotifications, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
 
   // Fetch jobs based on user role
   useEffect(() => {
@@ -193,6 +260,53 @@ export default function HomePage() {
     
     try {
       setJobsLoading(true);
+      
+      // If payment banner is active, show dummy data
+      if (showPaymentBanner) {
+        const dummyJobs = user.role === 'employer' 
+          ? [
+              {
+                _id: 'dummy1',
+                jobTitle: '🔒 Unlock to View',
+                employmentType: 'Full-time',
+                industryType: 'Technology',
+                status: 'draft',
+                salary: '$0',
+                createdAt: new Date().toISOString(),
+                isDummy: true
+              },
+              {
+                _id: 'dummy2',
+                jobTitle: '🔒 Unlock to View',
+                employmentType: 'Part-time',
+                industryType: 'Marketing',
+                status: 'draft',
+                salary: '$0',
+                createdAt: new Date().toISOString(),
+                isDummy: true
+              }
+            ]
+          : [
+              {
+                _id: 'dummy1',
+                job: {
+                  _id: 'job1',
+                  jobTitle: '🔒 Unlock to View',
+                  employmentType: 'Full-time',
+                  industryType: 'Technology',
+                  employer: { fullName: 'Hidden Employer' }
+                },
+                status: 'pending',
+                appliedAt: new Date().toISOString(),
+                isDummy: true
+              }
+            ];
+        
+        setMyJobs(dummyJobs);
+        setJobsLoading(false);
+        return;
+      }
+      
       const token = localStorage.getItem('token');
       
       let url;
@@ -225,6 +339,45 @@ export default function HomePage() {
 
   const fetchAllJobs = async () => {
     try {
+      // If payment banner is active, show limited dummy data
+      if (showPaymentBanner) {
+        const dummyAllJobs = [
+          {
+            _id: 'dummy_all_1',
+            jobTitle: '🔒 Subscribe to View More Jobs',
+            employmentType: 'Full-time',
+            industryType: 'Various',
+            workLocation: 'Multiple Locations',
+            salary: 'Competitive',
+            summary: 'Subscribe now to unlock thousands of job opportunities tailored for you.',
+            employer: { 
+              fullName: 'Multiple Employers',
+              businessSummary: { companyLogo: '' }
+            },
+            createdAt: new Date().toISOString(),
+            isDummy: true
+          },
+          {
+            _id: 'dummy_all_2',
+            jobTitle: '🔒 Premium Job Listings',
+            employmentType: 'Contract',
+            industryType: 'Various',
+            workLocation: 'Remote',
+            salary: 'Negotiable',
+            summary: 'Get access to premium job listings from top companies.',
+            employer: { 
+              fullName: 'Top Companies',
+              businessSummary: { companyLogo: '' }
+            },
+            createdAt: new Date().toISOString(),
+            isDummy: true
+          }
+        ];
+        
+        setAllJobs(dummyAllJobs);
+        return;
+      }
+      
       const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/jobs/published/list`;
       const response = await fetch(url);
 
@@ -619,6 +772,121 @@ export default function HomePage() {
     }
   };
 
+  // Notification functions
+  const handleNotificationClick = async (notification) => {
+    try {
+      const token = localStorage.getItem('token');
+      
+      // Mark as read
+      if (!notification.isRead) {
+        await fetch(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/notifications/${notification._id}/read`,
+          {
+            method: 'PUT',
+            headers: { Authorization: `Bearer ${token}` }
+          }
+        );
+        
+        // Update local state
+        setNotifications(prev =>
+          prev.map(n => n._id === notification._id ? { ...n, isRead: true } : n)
+        );
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      }
+
+      // Navigate based on notification type
+      setShowNotifications(false);
+      if (notification.metadata?.chatId) {
+        router.push(`/chats?chatId=${notification.metadata.chatId}`);
+      } else if (notification.metadata?.jobId) {
+        router.push(`/job/${notification.metadata.jobId}`);
+      }
+    } catch (error) {
+      console.error('Error handling notification:', error);
+    }
+  };
+
+  const markAllNotificationsRead = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/notifications/read-all`,
+        {
+          method: 'PUT',
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+
+      if (response.ok) {
+        setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+        setUnreadCount(0);
+      }
+    } catch (error) {
+      console.error('Error marking all as read:', error);
+    }
+  };
+
+  const deleteNotification = async (notificationId, e) => {
+    e.stopPropagation();
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/notifications/${notificationId}`,
+        {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+
+      if (response.ok) {
+        setNotifications(prev => prev.filter(n => n._id !== notificationId));
+        fetchNotifications(); // Refresh to update unread count
+      }
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+    }
+  };
+
+  const handleSubscribe = async (packageId) => {
+    try {
+      const token = localStorage.getItem('token');
+      
+      // Create checkout session
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/stripe/create-checkout-session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          email: user.email,
+          password: 'existing-user', // Not used for existing users
+          fullName: user.fullName,
+          mobileNumber: user.mobileNumber || '',
+          role: user.role,
+          selectedGoal: user.selectedGoal || '',
+          packageId: packageId,
+          successUrl: `${window.location.origin}/home?payment=success`,
+          cancelUrl: `${window.location.origin}/home?payment=cancelled`
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.url) {
+        // Remove payment banner flag
+        localStorage.removeItem('showPaymentBanner');
+        // Redirect to Stripe checkout
+        window.location.href = data.url;
+      } else {
+        alert(data.error || 'Failed to create checkout session');
+      }
+    } catch (error) {
+      console.error('Error creating checkout:', error);
+      alert('Something went wrong. Please try again.');
+    }
+  };
+
   const handleLiveChat = () => {
     // Handle live chat functionality
     console.log('Opening live chat...');
@@ -844,7 +1112,13 @@ export default function HomePage() {
                 setShowProfile(false);
                 setShowLiveChat(false);
                 setShowSettings(false);
-                setActiveTab('Search Jobs');
+                setShowNotifications(false);
+                // Set active tab based on user role
+                if (user?.role === 'employer') {
+                  setActiveTab('My Jobs');
+                } else {
+                  setActiveTab('Search Jobs');
+                }
               }}
               className="flex items-center"
             >
@@ -868,13 +1142,23 @@ export default function HomePage() {
             >
               <MessageCircle className={`w-6 h-6 ${getTextClassName()}`} />
             </button>
-            {/* Bell Icon */}
-            <button className="p-2" onClick={() => {
-              setShowLiveChat(true);
-              setShowProfile(false);
-              setShowSettings(false);
-            }}>
+            {/* Bell Icon - Notifications */}
+            <button 
+              className="p-2 relative" 
+              onClick={() => {
+                setShowNotifications(!showNotifications);
+                setShowLiveChat(false);
+                setShowProfile(false);
+                setShowSettings(false);
+              }}
+              title="Notifications"
+            >
               <Bell className={`w-6 h-6 ${getTextClassName()}`} />
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
             </button>
             {/* Profile Icon */}
             <button className="p-2" onClick={() => {
@@ -895,11 +1179,197 @@ export default function HomePage() {
           </div>
         </div>
 
+        {/* Payment Banner */}
+        <AnimatePresence>
+          {showPaymentBanner && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+              className="mx-4 mb-4"
+            >
+              <div className="bg-gradient-to-r from-yellow-500 via-orange-500 to-red-500 rounded-2xl p-4 shadow-lg relative overflow-hidden">
+                {/* Animated background pattern */}
+                <div className="absolute inset-0 opacity-10">
+                  <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] animate-pulse"></div>
+                </div>
+
+                <div className="relative flex items-center justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
+                      </svg>
+                      <h3 className="text-white font-bold text-lg">Unlock Full Access</h3>
+                    </div>
+                    <p className="text-white/90 text-sm">
+                      You're viewing limited features. Subscribe now to explore everything!
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setShowSubscriptionModal(true)}
+                      className="px-6 py-2.5 bg-white text-orange-600 rounded-xl font-bold text-sm shadow-lg hover:shadow-xl transition-all whitespace-nowrap"
+                    >
+                      💳 Subscribe Now
+                    </motion.button>
+                    <button
+                      onClick={() => {
+                        setShowPaymentBanner(false);
+                        localStorage.removeItem('showPaymentBanner');
+                      }}
+                      className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                      aria-label="Close banner"
+                    >
+                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Main Content */}
         <div className="flex-1 px-2">
           <div className={`${getCardClassName()} rounded-3xl px-4 py-6 shadow-sm w-[97%] mx-auto`}>
             <AnimatePresence mode="wait">
-            {showLiveChat ? (
+            {showNotifications ? (
+              /* Notification Center */
+              <motion.div
+                key="notifications"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-4"
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <h2 className={`text-lg font-semibold ${getTextClassName()}`}>Notifications</h2>
+                    {unreadCount > 0 && (
+                      <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full font-bold">
+                        {unreadCount} new
+                      </span>
+                    )}
+                  </div>
+                  <button 
+                    onClick={() => setShowNotifications(false)}
+                    className={`text-2xl ${getSubTextClassName()} hover:${getTextClassName()}`}
+                  >
+                    ×
+                  </button>
+                </div>
+
+                {/* Action Buttons */}
+                {unreadCount > 0 && (
+                  <div className="flex justify-end">
+                    <button
+                      onClick={markAllNotificationsRead}
+                      className="text-sm text-[#00EA72] hover:text-[#00D66C] font-medium"
+                    >
+                      Mark all as read
+                    </button>
+                  </div>
+                )}
+
+                {/* Notifications List */}
+                <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Bell className={`w-16 h-16 mx-auto mb-4 ${getSubTextClassName()} opacity-50`} />
+                      <p className={`text-sm ${getSubTextClassName()}`}>No notifications yet</p>
+                    </div>
+                  ) : (
+                    notifications.map((notification) => {
+                      const getNotificationIcon = (type) => {
+                        switch (type) {
+                          case 'job_created': return '💼';
+                          case 'application_received': return '📝';
+                          case 'application_status_changed': return '✅';
+                          case 'job_closed': return '🔒';
+                          case 'job_assigned': return '🎉';
+                          case 'new_message': return '💬';
+                          case 'chat_closed': return '🔕';
+                          case 'chat_reopened': return '🔔';
+                          case 'interview_scheduled': return '📅';
+                          default: return '🔔';
+                        }
+                      };
+
+                      const getTimeAgo = (date) => {
+                        const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+                        if (seconds < 60) return 'Just now';
+                        const minutes = Math.floor(seconds / 60);
+                        if (minutes < 60) return `${minutes}m ago`;
+                        const hours = Math.floor(minutes / 60);
+                        if (hours < 24) return `${hours}h ago`;
+                        const days = Math.floor(hours / 24);
+                        if (days < 7) return `${days}d ago`;
+                        return new Date(date).toLocaleDateString();
+                      };
+
+                      return (
+                        <motion.div
+                          key={notification._id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className={`p-4 rounded-lg border cursor-pointer transition-all ${
+                            notification.isRead
+                              ? theme === 'dark' 
+                                ? 'bg-gray-800/50 border-gray-700 hover:bg-gray-800' 
+                                : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                              : theme === 'dark'
+                                ? 'bg-[#00EA72]/10 border-[#00EA72]/30 hover:bg-[#00EA72]/20'
+                                : 'bg-[#00EA72]/5 border-[#00EA72]/20 hover:bg-[#00EA72]/10'
+                          }`}
+                          onClick={() => handleNotificationClick(notification)}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="text-2xl shrink-0">
+                              {getNotificationIcon(notification.type)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-2 mb-1">
+                                <h3 className={`font-semibold text-sm ${getTextClassName()}`}>
+                                  {notification.title}
+                                </h3>
+                                <button
+                                  onClick={(e) => deleteNotification(notification._id, e)}
+                                  className={`text-sm ${getSubTextClassName()} hover:text-red-500`}
+                                >
+                                  ×
+                                </button>
+                              </div>
+                              <p className={`text-sm ${getSubTextClassName()} mb-2`}>
+                                {notification.message}
+                              </p>
+                              <div className="flex items-center justify-between">
+                                <span className={`text-xs ${getSubTextClassName()}`}>
+                                  {getTimeAgo(notification.createdAt)}
+                                </span>
+                                {notification.metadata?.senderName && (
+                                  <span className={`text-xs ${getSubTextClassName()}`}>
+                                    From: {notification.metadata.senderName}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      );
+                    })
+                  )}
+                </div>
+              </motion.div>
+            ) : showLiveChat ? (
               /* Live Chat Page */
               <motion.div
                 key="live-chat"
@@ -1705,25 +2175,38 @@ export default function HomePage() {
                           {activeTab === 'My Jobs' && user?.role === 'employer' && !isApplication ? (
                             <>
                               <motion.button 
-                                whileHover={{ scale: 1.1 }}
-                                whileTap={{ scale: 0.9 }}
+                                whileHover={{ scale: jobData.isDummy ? 1 : 1.1 }}
+                                whileTap={{ scale: jobData.isDummy ? 1 : 0.9 }}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleEditJob(jobData);
+                                  if (jobData.isDummy) {
+                                    setShowSubscriptionModal(true);
+                                  } else {
+                                    handleEditJob(jobData);
+                                  }
                                 }}
-                                className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
-                                title="Edit Job"
+                                className={`p-1.5 ${jobData.isDummy ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-full transition-colors`}
+                                title={jobData.isDummy ? 'Subscribe to unlock' : 'Edit Job'}
+                                disabled={jobData.isDummy}
                               >
                                 <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                 </svg>
                               </motion.button>
                               <motion.button 
-                                whileHover={{ scale: 1.1 }}
-                                whileTap={{ scale: 0.9 }}
-                                onClick={() => handleDeleteJob(jobId)}
-                                className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
-                                title="Delete Job"
+                                whileHover={{ scale: jobData.isDummy ? 1 : 1.1 }}
+                                whileTap={{ scale: jobData.isDummy ? 1 : 0.9 }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (jobData.isDummy) {
+                                    setShowSubscriptionModal(true);
+                                  } else {
+                                    handleDeleteJob(jobId);
+                                  }
+                                }}
+                                className={`p-1.5 ${jobData.isDummy ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-full transition-colors`}
+                                title={jobData.isDummy ? 'Subscribe to unlock' : 'Delete Job'}
+                                disabled={jobData.isDummy}
                               >
                                 <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -1732,17 +2215,19 @@ export default function HomePage() {
                             </>
                           ) : (user?.role === 'jobSeeker' || user?.role === 'employee') ? (
                             <motion.button 
-                              whileHover={{ scale: favoriteLoadingJobs.has(jobId) ? 1 : 1.2 }}
-                              whileTap={{ scale: favoriteLoadingJobs.has(jobId) ? 1 : 0.9 }}
+                              whileHover={{ scale: (favoriteLoadingJobs.has(jobId) || jobData.isDummy) ? 1 : 1.2 }}
+                              whileTap={{ scale: (favoriteLoadingJobs.has(jobId) || jobData.isDummy) ? 1 : 0.9 }}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (!favoriteLoadingJobs.has(jobId)) {
+                                if (jobData.isDummy) {
+                                  setShowSubscriptionModal(true);
+                                } else if (!favoriteLoadingJobs.has(jobId)) {
                                   toggleFavorite(jobId);
                                 }
                               }}
-                              className="p-1 relative"
-                              disabled={favoriteLoadingJobs.has(jobId)}
-                              title={favoriteLoadingJobs.has(jobId) ? 'Loading...' : (favoriteJobs.has(jobId) ? 'Remove from favorites' : 'Add to favorites')}
+                              className={`p-1 relative ${jobData.isDummy ? 'opacity-50' : ''}`}
+                              disabled={favoriteLoadingJobs.has(jobId) || jobData.isDummy}
+                              title={jobData.isDummy ? 'Subscribe to unlock' : favoriteLoadingJobs.has(jobId) ? 'Loading...' : (favoriteJobs.has(jobId) ? 'Remove from favorites' : 'Add to favorites')}
                             >
                               {favoriteLoadingJobs.has(jobId) ? (
                                 <svg className="w-5 h-5 text-gray-400 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -1816,13 +2301,25 @@ export default function HomePage() {
 
                       {/* View Details Button */}
                       <motion.button
-                        whileHover={{ scale: isClosed ? 1 : 1.03 }}
-                        whileTap={{ scale: isClosed ? 1 : 0.97 }}
-                        onClick={() => !isClosed && router.push(`/job/${jobId}`)}
+                        whileHover={{ scale: (isClosed || jobData.isDummy) ? 1 : 1.03 }}
+                        whileTap={{ scale: (isClosed || jobData.isDummy) ? 1 : 0.97 }}
+                        onClick={() => {
+                          if (jobData.isDummy) {
+                            setShowSubscriptionModal(true);
+                          } else if (!isClosed) {
+                            router.push(`/job/${jobId}`);
+                          }
+                        }}
                         disabled={isClosed && isApplication}
-                        className={`w-full ${isClosed && isApplication ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#00EA72] hover:bg-[#00D66C]'} text-black font-medium text-[13px] py-2 rounded-full transition-colors`}
+                        className={`w-full ${
+                          jobData.isDummy 
+                            ? 'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600' 
+                            : isClosed && isApplication 
+                              ? 'bg-gray-400 cursor-not-allowed' 
+                              : 'bg-[#00EA72] hover:bg-[#00D66C]'
+                        } text-${jobData.isDummy ? 'white' : 'black'} font-medium text-[13px] py-2 rounded-full transition-colors`}
                       >
-                        {isClosed && isApplication ? 'Job Closed' : 'View Details'}
+                        {jobData.isDummy ? '🔓 Subscribe to Unlock' : isClosed && isApplication ? 'Job Closed' : 'View Details'}
                       </motion.button>
                     </motion.div>
                         );
@@ -2583,6 +3080,172 @@ export default function HomePage() {
                   Delete Job
                 </motion.button>
               </motion.div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Subscription Modal */}
+      <AnimatePresence>
+        {showSubscriptionModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={() => setShowSubscriptionModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", damping: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className={`${getCardClassName()} rounded-3xl p-8 shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto`}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className={`text-2xl font-bold ${getTextClassName()}`}>Choose Your Plan</h2>
+                  <p className={`text-sm ${getSubTextClassName()} mt-1`}>Unlock all features with a subscription</p>
+                </div>
+                <button
+                  onClick={() => setShowSubscriptionModal(false)}
+                  className={`p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors ${getTextClassName()}`}
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Terms Link */}
+              <div className="text-center mb-6">
+                <a
+                  href="/terms"
+                  target="_blank"
+                  className={`text-sm ${getSubTextClassName()} hover:text-[#00EA72] underline`}
+                >
+                  View Terms and Conditions
+                </a>
+              </div>
+
+              {/* Subscription Packages */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Basic Plan */}
+                <motion.div
+                  whileHover={{ scale: 1.02, y: -5 }}
+                  className={`border-2 border-gray-300 rounded-2xl p-6 hover:border-[#00EA72] transition-all ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}
+                >
+                  <div className="text-center mb-6">
+                    <h3 className={`text-xl font-bold ${getTextClassName()} mb-2`}>Basic</h3>
+                    <div className="flex items-baseline justify-center">
+                      <span className="text-4xl font-bold text-[#00EA72]">$29</span>
+                      <span className={`text-sm ${getSubTextClassName()} ml-2`}>per month</span>
+                    </div>
+                    <p className={`text-xs ${getSubTextClassName()} mt-2`}>Perfect for getting started</p>
+                  </div>
+                  
+                  <div className="space-y-3 mb-6">
+                    {['Post up to 5 jobs', 'Basic applicant tracking', 'Email notifications', 'Standard support'].map((benefit, idx) => (
+                      <div key={idx} className="flex items-center gap-3">
+                        <div className="w-5 h-5 bg-[#00EA72] rounded-full flex items-center justify-center shrink-0">
+                          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                        <span className={`text-sm ${getTextClassName()}`}>{benefit}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button 
+                    onClick={() => handleSubscribe('basic')}
+                    className="w-full py-3 bg-[#00EA72] hover:bg-[#00D66C] text-black font-bold rounded-xl transition-all"
+                  >
+                    Get Started
+                  </button>
+                </motion.div>
+
+                {/* Pro Plan - Featured */}
+                <motion.div
+                  whileHover={{ scale: 1.02, y: -5 }}
+                  className={`border-2 border-[#00EA72] rounded-2xl p-6 relative ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} shadow-lg`}
+                >
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#00EA72] text-black px-4 py-1 rounded-full text-xs font-bold">
+                    MOST POPULAR
+                  </div>
+                  
+                  <div className="text-center mb-6 mt-2">
+                    <h3 className={`text-xl font-bold ${getTextClassName()} mb-2`}>Pro</h3>
+                    <div className="flex items-baseline justify-center">
+                      <span className="text-4xl font-bold text-[#00EA72]">$59</span>
+                      <span className={`text-sm ${getSubTextClassName()} ml-2`}>per month</span>
+                    </div>
+                    <p className={`text-xs ${getSubTextClassName()} mt-2`}>For growing businesses</p>
+                  </div>
+                  
+                  <div className="space-y-3 mb-6">
+                    {['Unlimited job posts', 'Advanced applicant tracking', 'Priority support', 'Analytics dashboard', 'Custom branding', 'API access'].map((benefit, idx) => (
+                      <div key={idx} className="flex items-center gap-3">
+                        <div className="w-5 h-5 bg-[#00EA72] rounded-full flex items-center justify-center shrink-0">
+                          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                        <span className={`text-sm ${getTextClassName()}`}>{benefit}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button 
+                    onClick={() => handleSubscribe('pro')}
+                    className="w-full py-3 bg-[#00EA72] hover:bg-[#00D66C] text-black font-bold rounded-xl transition-all"
+                  >
+                    Get Started
+                  </button>
+                </motion.div>
+
+                {/* Enterprise Plan */}
+                <motion.div
+                  whileHover={{ scale: 1.02, y: -5 }}
+                  className={`border-2 border-gray-300 rounded-2xl p-6 hover:border-[#00EA72] transition-all ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}
+                >
+                  <div className="text-center mb-6">
+                    <h3 className={`text-xl font-bold ${getTextClassName()} mb-2`}>Enterprise</h3>
+                    <div className="flex items-baseline justify-center">
+                      <span className="text-4xl font-bold text-[#00EA72]">$99</span>
+                      <span className={`text-sm ${getSubTextClassName()} ml-2`}>per month</span>
+                    </div>
+                    <p className={`text-xs ${getSubTextClassName()} mt-2`}>For large organizations</p>
+                  </div>
+                  
+                  <div className="space-y-3 mb-6">
+                    {['Everything in Pro', 'Dedicated account manager', 'Custom integrations', 'White-label solution', 'SLA guarantee', '24/7 phone support'].map((benefit, idx) => (
+                      <div key={idx} className="flex items-center gap-3">
+                        <div className="w-5 h-5 bg-[#00EA72] rounded-full flex items-center justify-center shrink-0">
+                          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                        <span className={`text-sm ${getTextClassName()}`}>{benefit}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button 
+                    onClick={() => handleSubscribe('enterprise')}
+                    className="w-full py-3 bg-[#00EA72] hover:bg-[#00D66C] text-black font-bold rounded-xl transition-all"
+                  >
+                    Get Started
+                  </button>
+                </motion.div>
+              </div>
+
+              {/* Footer Note */}
+              <div className={`mt-6 text-center ${getSubTextClassName()} text-sm`}>
+                All plans include a 14-day free trial. Cancel anytime.
+              </div>
             </motion.div>
           </motion.div>
         )}

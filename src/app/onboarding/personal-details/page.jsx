@@ -110,11 +110,19 @@ export default function PersonalDetailsPage() {
       }
 
       // Save personal details (and create user if first time)
+      const token = localStorage.getItem('token');
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+      
+      // If user already has token (came from subscription), include it
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch('http://localhost:5000/api/onboarding/personal-details', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify(requestBody),
       });
 
@@ -257,7 +265,7 @@ export default function PersonalDetailsPage() {
                   name="fullName"
                   value={formData.fullName}
                   onChange={handleInputChange}
-                  placeholder="Sal Monella"
+                  placeholder=""
                   className="h-12 rounded-xl border-gray-300 text-[15px]"
                 />
               </div>
