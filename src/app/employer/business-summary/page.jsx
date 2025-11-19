@@ -36,7 +36,7 @@ export default function BusinessSummaryPage() {
       }
 
       // Update user profile with business summary
-      const response = await fetch('http://localhost:5000/api/onboarding/business-summary', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/onboarding/business-summary`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

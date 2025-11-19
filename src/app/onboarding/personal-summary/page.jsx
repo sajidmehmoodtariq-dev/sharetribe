@@ -22,7 +22,7 @@ export default function PersonalSummaryPage() {
       }
 
       // Update user profile with personal summary
-      const response = await fetch('http://localhost:5000/api/onboarding/personal-summary', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/onboarding/personal-summary`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

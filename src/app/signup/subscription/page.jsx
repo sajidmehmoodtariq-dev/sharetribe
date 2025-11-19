@@ -57,7 +57,7 @@ export default function SubscriptionPage() {
       }
 
       // Create Stripe checkout session
-      const response = await fetch('http://localhost:5000/api/stripe/create-checkout-session', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/stripe/create-checkout-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -98,7 +98,7 @@ export default function SubscriptionPage() {
       const userRole = sessionStorage.getItem('userRole') || 'employee';
 
       // Create account without subscription
-      const response = await fetch('http://localhost:5000/api/auth/signup', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

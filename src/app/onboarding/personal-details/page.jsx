@@ -138,7 +138,7 @@ export default function PersonalDetailsPage() {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const response = await fetch('http://localhost:5000/api/onboarding/personal-details', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/onboarding/personal-details`, {
         method: 'POST',
         headers,
         body: JSON.stringify(requestBody),

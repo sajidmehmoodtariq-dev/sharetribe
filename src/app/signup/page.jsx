@@ -44,7 +44,7 @@ export default function SignupPage() {
 
     try {
       // Check if user already exists
-      const checkResponse = await fetch('http://localhost:5000/api/auth/check-email', {
+      const checkResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/check-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: formData.email }),
