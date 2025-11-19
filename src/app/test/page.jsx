@@ -162,7 +162,7 @@ export default function TestPage() {
     }
 
     try {
-      const response = await fetch('/api/auth/login', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: testUser.email, password: testUser.password })
@@ -187,7 +187,11 @@ export default function TestPage() {
     addResult('🧪 Testing Get Current User...');
 
     try {
-      const response = await fetch('/api/auth/me');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/me`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
       const data = await response.json();
 
       if (response.ok) {

@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import styles from '../../page.module.css';
+export function generateStaticParams() { return []; }
+
 import { motion } from 'framer-motion';
 
 export default function Step2JobSummary() {

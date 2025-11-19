@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 
+export function generateStaticParams() { return []; }
+
 export default function JobDraft() {
   const router = useRouter();
   const params = useParams();

@@ -3,7 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import styles from '../page.module.css';
+import styles from '../../../page.module.css';
+
+export function generateStaticParams() {
+  return [];
+}
 
 export default function PostJobReview() {
   const router = useRouter();
