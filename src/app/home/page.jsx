@@ -115,12 +115,17 @@ export default function HomePage() {
           const data = await response.json();
           setUser(data.user);
           
-          // Check if payment banner should be shown based on subscription status
-          const hasPaymentBannerFlag = localStorage.getItem('showPaymentBanner') === 'true';
-          const hasActiveSubscription = data.user.subscriptionStatus === 'active';
+          console.log('=== USER DATA FROM DATABASE ===');
+          console.log('User:', data.user.email);
+          console.log('Subscription Status:', data.user.subscriptionStatus);
+          console.log('Has Active Subscription:', data.user.subscriptionStatus === 'active');
           
-          // Show banner if flag is set OR user doesn't have active subscription
-          setShowPaymentBanner(hasPaymentBannerFlag || !hasActiveSubscription);
+          // Show payment banner ONLY if user doesn't have active subscription
+          const hasActiveSubscription = data.user.subscriptionStatus === 'active';
+          setShowPaymentBanner(!hasActiveSubscription);
+          
+          console.log('Should Show Payment Banner:', !hasActiveSubscription);
+          console.log('================================');
           
           // Set initial tab based on role
           if (data.user.role === 'employer') {
@@ -166,16 +171,50 @@ export default function HomePage() {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const paymentStatus = urlParams.get('payment');
+    const onboardingStatus = urlParams.get('onboarding');
     
     if (paymentStatus === 'success') {
-      // Remove payment banner
+      // Remove payment banner immediately
       localStorage.removeItem('showPaymentBanner');
       setShowPaymentBanner(false);
-      // Show success message
-      alert('Payment successful! Welcome to your premium subscription.');
+      
       // Clean URL
       window.history.replaceState({}, '', '/home');
+      
+      // Show success message
+      alert('🎉 Payment successful! All features are now unlocked.');
+      
       // Refresh user data to get updated subscription status
+      const fetchUpdatedUser = async () => {
+        try {
+          const token = localStorage.getItem('token');
+          const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/me`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (response.ok) {
+            const data = await response.json();
+            setUser(data.user);
+            // Force reload jobs to show real data
+            window.location.reload();
+          }
+        } catch (error) {
+          console.error('Error fetching updated user:', error);
+          window.location.reload();
+        }
+      };
+      fetchUpdatedUser();
+    } else if (onboardingStatus === 'complete') {
+      // Onboarding just completed, remove banner and refresh
+      localStorage.removeItem('showPaymentBanner');
+      setShowPaymentBanner(false);
+      
+      // Clean URL
+      window.history.replaceState({}, '', '/home');
+      
+      // Show welcome message
+      alert('🎉 Welcome! Your profile is complete and all features are unlocked.');
+      
+      // Force reload to refresh subscription status
       window.location.reload();
     } else if (paymentStatus === 'cancelled') {
       alert('Payment was cancelled. You can subscribe anytime from the payment banner.');
@@ -261,8 +300,16 @@ export default function HomePage() {
     try {
       setJobsLoading(true);
       
-      // If payment banner is active, show dummy data
-      if (showPaymentBanner) {
+      // Check if user has active subscription from database
+      const hasActiveSubscription = user?.subscriptionStatus === 'active';
+      
+      console.log('=== FETCH MY JOBS ===');
+      console.log('User Subscription Status:', user?.subscriptionStatus);
+      console.log('Has Active Subscription:', hasActiveSubscription);
+      console.log('Will show dummy data:', !hasActiveSubscription);
+      
+      // If no active subscription, show dummy data
+      if (!hasActiveSubscription) {
         const dummyJobs = user.role === 'employer' 
           ? [
               {
@@ -339,8 +386,11 @@ export default function HomePage() {
 
   const fetchAllJobs = async () => {
     try {
-      // If payment banner is active, show limited dummy data
-      if (showPaymentBanner) {
+      // Check if user has active subscription from database
+      const hasActiveSubscription = user?.subscriptionStatus === 'active';
+      
+      // If no active subscription, show limited dummy data
+      if (!hasActiveSubscription) {
         const dummyAllJobs = [
           {
             _id: 'dummy_all_1',
@@ -849,7 +899,17 @@ export default function HomePage() {
 
   const handleSubscribe = async (packageId) => {
     try {
+      setSubscriptionLoading(true);
       const token = localStorage.getItem('token');
+      
+      // Check if user has completed onboarding
+      const hasCompletedOnboarding = user?.onboarding?.personalDetailsCompleted && 
+                                      user?.onboarding?.personalSummaryCompleted;
+      
+      // Set success URL based on onboarding status
+      const successUrl = hasCompletedOnboarding 
+        ? `${window.location.origin}/home?payment=success`
+        : `${window.location.origin}/onboarding/personal-details?payment=success`;
       
       // Create checkout session
       const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/stripe/create-checkout-session`, {
@@ -866,7 +926,7 @@ export default function HomePage() {
           role: user.role,
           selectedGoal: user.selectedGoal || '',
           packageId: packageId,
-          successUrl: `${window.location.origin}/home?payment=success`,
+          successUrl: successUrl,
           cancelUrl: `${window.location.origin}/home?payment=cancelled`
         })
       });
@@ -879,11 +939,36 @@ export default function HomePage() {
         // Redirect to Stripe checkout
         window.location.href = data.url;
       } else {
+        setSubscriptionLoading(false);
         alert(data.error || 'Failed to create checkout session');
       }
     } catch (error) {
+      setSubscriptionLoading(false);
       console.error('Error creating checkout:', error);
       alert('Something went wrong. Please try again.');
+    }
+  };
+
+  // TEST ONLY - Remove in production
+  const testActivateSubscription = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/stripe/test-activate`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        alert('✅ Subscription activated! Refreshing...');
+        window.location.reload();
+      } else {
+        alert('❌ Failed to activate subscription');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('❌ Error activating subscription');
     }
   };
 
@@ -1216,6 +1301,16 @@ export default function HomePage() {
                       className="px-6 py-2.5 bg-white text-orange-600 rounded-xl font-bold text-sm shadow-lg hover:shadow-xl transition-all whitespace-nowrap"
                     >
                       💳 Subscribe Now
+                    </motion.button>
+                    {/* TEST BUTTON - Remove in production */}
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={testActivateSubscription}
+                      className="px-4 py-2.5 bg-green-500 text-white rounded-xl font-bold text-sm shadow-lg hover:shadow-xl transition-all whitespace-nowrap"
+                      title="Test: Activate subscription without payment"
+                    >
+                      🧪 TEST
                     </motion.button>
                     <button
                       onClick={() => {
@@ -3161,9 +3256,17 @@ export default function HomePage() {
 
                   <button 
                     onClick={() => handleSubscribe('basic')}
-                    className="w-full py-3 bg-[#00EA72] hover:bg-[#00D66C] text-black font-bold rounded-xl transition-all"
+                    disabled={subscriptionLoading}
+                    className="w-full py-3 bg-[#00EA72] hover:bg-[#00D66C] text-black font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    Get Started
+                    {subscriptionLoading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-black"></div>
+                        Processing...
+                      </>
+                    ) : (
+                      'Get Started'
+                    )}
                   </button>
                 </motion.div>
 
@@ -3200,9 +3303,17 @@ export default function HomePage() {
 
                   <button 
                     onClick={() => handleSubscribe('pro')}
-                    className="w-full py-3 bg-[#00EA72] hover:bg-[#00D66C] text-black font-bold rounded-xl transition-all"
+                    disabled={subscriptionLoading}
+                    className="w-full py-3 bg-[#00EA72] hover:bg-[#00D66C] text-black font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    Get Started
+                    {subscriptionLoading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-black"></div>
+                        Processing...
+                      </>
+                    ) : (
+                      'Get Started'
+                    )}
                   </button>
                 </motion.div>
 
@@ -3235,9 +3346,17 @@ export default function HomePage() {
 
                   <button 
                     onClick={() => handleSubscribe('enterprise')}
-                    className="w-full py-3 bg-[#00EA72] hover:bg-[#00D66C] text-black font-bold rounded-xl transition-all"
+                    disabled={subscriptionLoading}
+                    className="w-full py-3 bg-[#00EA72] hover:bg-[#00D66C] text-black font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    Get Started
+                    {subscriptionLoading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-black"></div>
+                        Processing...
+                      </>
+                    ) : (
+                      'Get Started'
+                    )}
                   </button>
                 </motion.div>
               </div>

@@ -508,4 +508,32 @@ async function handleInvoicePaymentFailed(invoice) {
   }
 }
 
+// TEST ONLY - Manually activate subscription for testing
+// @desc    Test endpoint to activate subscription
+// @route   POST /api/stripe/test-activate
+// @access  Private
+exports.testActivateSubscription = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // Update user subscription status
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { subscriptionStatus: 'active' },
+      { new: true }
+    ).select('-password');
+    
+    console.log('TEST: Manually activated subscription for user:', user.email);
+    
+    res.json({
+      success: true,
+      message: 'Subscription activated for testing',
+      user
+    });
+  } catch (error) {
+    console.error('Test activate error:', error);
+    res.status(500).json({ error: 'Failed to activate subscription' });
+  }
+};
+
 module.exports = exports;

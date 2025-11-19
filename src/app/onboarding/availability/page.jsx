@@ -68,10 +68,13 @@ export default function AvailabilityPage() {
       // Clear any remaining session storage
       sessionStorage.clear();
 
+      // Clear payment banner flag since user has completed onboarding and paid
+      localStorage.removeItem('showPaymentBanner');
+
       alert('Profile completed successfully!');
       
-      // Redirect to home page
-      router.push('/home');
+      // Redirect to home page with success flag to refresh subscription status
+      router.push('/home?onboarding=complete');
     } catch (error) {
       console.error('Error:', error);
       alert(error.message || 'Something went wrong. Please try again.');

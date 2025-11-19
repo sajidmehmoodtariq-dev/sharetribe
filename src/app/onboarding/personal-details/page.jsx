@@ -24,6 +24,24 @@ export default function PersonalDetailsPage() {
   const [profileImage, setProfileImage] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
+
+  // Handle payment success from URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentStatus = urlParams.get('payment');
+    
+    if (paymentStatus === 'success') {
+      setShowPaymentSuccess(true);
+      // Remove payment banner flag
+      localStorage.removeItem('showPaymentBanner');
+      // Clean URL
+      window.history.replaceState({}, '', '/onboarding/personal-details');
+      
+      // Auto-hide success message after 5 seconds
+      setTimeout(() => setShowPaymentSuccess(false), 5000);
+    }
+  }, []);
 
   // Get signup data from sessionStorage
   useEffect(() => {
@@ -170,8 +188,23 @@ export default function PersonalDetailsPage() {
       {/* Content Container */}
       <div className="relative z-10 min-h-screen flex items-center justify-center">
       <div className="w-full max-w-[375px] mx-auto h-screen flex flex-col">
+        {/* Payment Success Banner */}
+        {showPaymentSuccess && (
+          <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-4 shadow-lg">
+            <div className="flex items-center justify-center gap-3 max-w-4xl mx-auto">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <p className="font-bold">🎉 Payment Successful!</p>
+                <p className="text-sm">Complete your profile to unlock all features</p>
+              </div>
+            </div>
+          </div>
+        )}
+        
         {/* Logo at top */}
-        <div className="flex justify-center pt-8 pb-6">
+        <div className={`flex justify-center ${showPaymentSuccess ? 'pt-24' : 'pt-8'} pb-6`}>
           <Image
             src="/logo.png"
             alt="Head Huntd Logo"
