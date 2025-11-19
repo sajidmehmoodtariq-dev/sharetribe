@@ -41,6 +41,12 @@ export default function HomePage() {
   const [favoriteLoadingJobs, setFavoriteLoadingJobs] = useState(new Set()); // Track which jobs are being favorited
   const [connectionSearchQuery, setConnectionSearchQuery] = useState('');
   const [sortConnectionsBy, setSortConnectionsBy] = useState('Alphabetical');
+  const [employees, setEmployees] = useState([]); // For employers to browse employees
+  const [connections, setConnections] = useState([]); // Accepted connections
+  const [pendingRequests, setPendingRequests] = useState([]); // Pending requests received
+  const [sentRequests, setSentRequests] = useState([]); // Requests sent by user
+  const [networkLoading, setNetworkLoading] = useState(false);
+  const [connectionRequestLoading, setConnectionRequestLoading] = useState(new Set());
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editForm, setEditForm] = useState({
     fullName: '',
@@ -266,6 +272,18 @@ export default function HomePage() {
     }
   }, [user]);
 
+  // Fetch network data when Networks/My Network tab is active
+  useEffect(() => {
+    if (user && (activeTab === 'Networks' || activeTab === 'My Network')) {
+      if (user.role === 'employer') {
+        fetchEmployees();
+      } else {
+        fetchConnections();
+        fetchPendingRequests();
+      }
+    }
+  }, [user, activeTab, connectionSearchQuery]);
+
   const fetchSavedJobs = async () => {
     if (!user || (user.role !== 'jobSeeker' && user.role !== 'employee')) return;
     
@@ -437,6 +455,154 @@ export default function HomePage() {
       }
     } catch (error) {
       console.error('Error fetching all jobs:', error);
+    }
+  };
+
+  // Fetch all employees (for employers)
+  const fetchEmployees = async () => {
+    if (user?.role !== 'employer') return;
+    
+    try {
+      setNetworkLoading(true);
+      const token = localStorage.getItem('token');
+      const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/connections/employees?search=${connectionSearchQuery}`;
+      
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setEmployees(data.employees || []);
+      }
+    } catch (error) {
+      console.error('Error fetching employees:', error);
+    } finally {
+      setNetworkLoading(false);
+    }
+  };
+
+  // Fetch connections (accepted)
+  const fetchConnections = async () => {
+    try {
+      setNetworkLoading(true);
+      const token = localStorage.getItem('token');
+      const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/connections?search=${connectionSearchQuery}`;
+      
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setConnections(data.connections || []);
+      }
+    } catch (error) {
+      console.error('Error fetching connections:', error);
+    } finally {
+      setNetworkLoading(false);
+    }
+  };
+
+  // Fetch pending requests
+  const fetchPendingRequests = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/connections/pending`;
+      
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setPendingRequests(data.requests || []);
+      }
+    } catch (error) {
+      console.error('Error fetching pending requests:', error);
+    }
+  };
+
+  // Send connection request
+  const sendConnectionRequest = async (receiverId) => {
+    try {
+      setConnectionRequestLoading(prev => new Set(prev).add(receiverId));
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/connections/request`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          receiverId,
+          message: 'Hi, I would like to connect with you!'
+        })
+      });
+
+      if (response.ok) {
+        alert('Connection request sent successfully!');
+        // Refresh employees list to update status
+        await fetchEmployees();
+      } else {
+        const data = await response.json();
+        alert(data.message || 'Failed to send request');
+      }
+    } catch (error) {
+      console.error('Error sending connection request:', error);
+      alert('Failed to send connection request');
+    } finally {
+      setConnectionRequestLoading(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(receiverId);
+        return newSet;
+      });
+    }
+  };
+
+  // Accept connection request
+  const acceptConnectionRequest = async (connectionId) => {
+    try {
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/connections/${connectionId}/accept`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        alert('Connection accepted!');
+        await fetchPendingRequests();
+        await fetchConnections();
+      } else {
+        alert('Failed to accept connection');
+      }
+    } catch (error) {
+      console.error('Error accepting connection:', error);
+      alert('Failed to accept connection');
+    }
+  };
+
+  // Reject connection request
+  const rejectConnectionRequest = async (connectionId) => {
+    try {
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/connections/${connectionId}/reject`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        alert('Connection rejected');
+        await fetchPendingRequests();
+      } else {
+        alert('Failed to reject connection');
+      }
+    } catch (error) {
+      console.error('Error rejecting connection:', error);
+      alert('Failed to reject connection');
     }
   };
 
@@ -1912,7 +2078,12 @@ export default function HomePage() {
 
                         {/* Results Header with Grid Toggle */}
                         <div className="flex items-center justify-between mb-4">
-                          <p className={`text-sm ${getTextClassName()}`}>120 connected users</p>
+                          <p className={`text-sm ${getTextClassName()}`}>
+                            {user?.role === 'employer' 
+                              ? `${employees.length} ${employees.length === 1 ? 'employee' : 'employees'} found`
+                              : `${connections.length} ${connections.length === 1 ? 'connection' : 'connections'}`
+                            }
+                          </p>
                           <div className="flex items-center space-x-2">
                             <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
@@ -1931,57 +2102,256 @@ export default function HomePage() {
                           </div>
                         </div>
 
-                        {/* Network Connections Grid */}
-                        <motion.div 
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ delay: 0.4 }}
-                          className="grid grid-cols-2 gap-4"
-                        >
-                          {networkConnections.map((connection, index) => (
-                            <motion.div 
-                              key={connection.id} 
-                              initial={{ opacity: 0, scale: 0.9 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              transition={{ delay: 0.45 + (index * 0.05) }}
-                              whileHover={{ scale: 1.03, y: -5 }}
-                              className={`${getCardClassName()} rounded-lg p-4 shadow-sm border ${theme === 'dark' ? 'border-gray-700' : 'border-gray-100'} text-center`}
-                            >
-                              <motion.div 
-                                className="relative mx-auto mb-3 w-12 h-12"
-                                whileHover={{ scale: 1.1 }}
-                                transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                              >
-                                <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
-                                  <User className="w-6 h-6 text-gray-400" />
-                                </div>
-                                {connection.isOnline && (
+                        {/* Loading State */}
+                        {networkLoading && (
+                          <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="text-center py-8"
+                          >
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00EA72] mx-auto"></div>
+                            <p className={`mt-2 text-sm ${getSubTextClassName()}`}>Loading...</p>
+                          </motion.div>
+                        )}
+
+                        {/* Pending Requests Section (Employee only) */}
+                        {user?.role !== 'employer' && pendingRequests.length > 0 && !networkLoading && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.2 }}
+                            className="mb-6"
+                          >
+                            <h3 className={`text-[16px] font-semibold ${getTextClassName()} mb-4`}>
+                              Pending Requests ({pendingRequests.length})
+                            </h3>
+                            <div className="grid grid-cols-2 gap-4 mb-6">
+                              {pendingRequests.map((request, index) => (
+                                <motion.div
+                                  key={request._id}
+                                  initial={{ opacity: 0, scale: 0.9 }}
+                                  animate={{ opacity: 1, scale: 1 }}
+                                  transition={{ delay: 0.3 + (index * 0.05) }}
+                                  whileHover={{ scale: 1.03, y: -5 }}
+                                  className={`${getCardClassName()} rounded-lg p-4 shadow-sm border ${theme === 'dark' ? 'border-yellow-700' : 'border-yellow-200'} text-center`}
+                                >
                                   <motion.div 
-                                    initial={{ scale: 0 }}
-                                    animate={{ scale: 1 }}
-                                    transition={{ delay: 0.5 + (index * 0.05), type: "spring" }}
-                                    className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"
-                                  />
-                                )}
-                              </motion.div>
-                              <h4 className={`font-semibold text-[14px] ${getTextClassName()} mb-1`}>{connection.name}</h4>
-                              <p className={`text-[12px] ${getSubTextClassName()} mb-1`}>{connection.jobTitle}</p>
-                              <p className={`text-[11px] ${getSubTextClassName()} mb-3`}>{connection.location}</p>
-                              <div className="flex flex-col space-y-2">
-                                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                                  <Button className={`w-full ${getCardClassName()} border ${theme === 'dark' ? 'border-gray-600 text-gray-300 hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-gray-50'} text-[11px] px-3 py-1 rounded-full`}>
-                                    👁 View Profile
-                                  </Button>
+                                    className="relative mx-auto mb-3 w-12 h-12"
+                                    whileHover={{ scale: 1.1 }}
+                                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                                  >
+                                    <div className="w-12 h-12 bg-gradient-to-br from-[#00EA72] to-[#00D66C] rounded-full flex items-center justify-center">
+                                      <User className="w-6 h-6 text-white" />
+                                    </div>
+                                    <motion.div 
+                                      initial={{ scale: 0 }}
+                                      animate={{ scale: 1 }}
+                                      transition={{ delay: 0.4 + (index * 0.05), type: "spring" }}
+                                      className="absolute bottom-0 right-0 w-3 h-3 bg-yellow-500 rounded-full border-2 border-white"
+                                    />
+                                  </motion.div>
+                                  <h4 className={`font-semibold text-[14px] ${getTextClassName()} mb-1`}>
+                                    {request.senderId?.fullName || 'Unknown User'}
+                                  </h4>
+                                  <p className={`text-[12px] ${getSubTextClassName()} mb-1`}>
+                                    {request.senderId?.businessSummary?.companyName || 'Employer'}
+                                  </p>
+                                  {request.message && (
+                                    <p className={`text-[11px] ${getSubTextClassName()} mb-3 italic`}>
+                                      "{request.message}"
+                                    </p>
+                                  )}
+                                  <div className="flex flex-col space-y-2">
+                                    <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                                      <Button 
+                                        onClick={() => acceptConnectionRequest(request._id)}
+                                        className="w-full bg-[#00EA72] hover:bg-[#00D66C] text-black text-[11px] px-3 py-1 rounded-full font-semibold"
+                                      >
+                                        ✓ Accept
+                                      </Button>
+                                    </motion.div>
+                                    <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                                      <Button 
+                                        onClick={() => rejectConnectionRequest(request._id)}
+                                        className={`w-full ${getCardClassName()} border ${theme === 'dark' ? 'border-red-600 text-red-400 hover:bg-red-900/20' : 'border-red-300 text-red-600 hover:bg-red-50'} text-[11px] px-3 py-1 rounded-full`}
+                                      >
+                                        ✕ Reject
+                                      </Button>
+                                    </motion.div>
+                                  </div>
                                 </motion.div>
-                                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                                  <Button className={`w-full ${getCardClassName()} border ${theme === 'dark' ? 'border-gray-600 text-gray-300 hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-gray-50'} text-[11px] px-3 py-1 rounded-full`}>
-                                    💬 Message
-                                  </Button>
+                              ))}
+                            </div>
+                          </motion.div>
+                        )}
+
+                        {/* Network Connections/Employees Grid */}
+                        {!networkLoading && (
+                          <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.4 }}
+                            className="grid grid-cols-2 gap-4"
+                          >
+                            {user?.role === 'employer' ? (
+                              // Employer view: Show all employees with connection status
+                              employees.length > 0 ? (
+                                employees.map((employee, index) => (
+                                  <motion.div 
+                                    key={employee._id} 
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ delay: 0.45 + (index * 0.05) }}
+                                    whileHover={{ scale: 1.03, y: -5 }}
+                                    className={`${getCardClassName()} rounded-lg p-4 shadow-sm border ${theme === 'dark' ? 'border-gray-700' : 'border-gray-100'} text-center`}
+                                  >
+                                    <motion.div 
+                                      className="relative mx-auto mb-3 w-12 h-12"
+                                      whileHover={{ scale: 1.1 }}
+                                      transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                                    >
+                                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                                        <User className="w-6 h-6 text-white" />
+                                      </div>
+                                      {employee.connectionStatus === 'accepted' && (
+                                        <motion.div 
+                                          initial={{ scale: 0 }}
+                                          animate={{ scale: 1 }}
+                                          transition={{ delay: 0.5 + (index * 0.05), type: "spring" }}
+                                          className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"
+                                        />
+                                      )}
+                                    </motion.div>
+                                    <h4 className={`font-semibold text-[14px] ${getTextClassName()} mb-1`}>
+                                      {employee.fullName}
+                                    </h4>
+                                    <p className={`text-[12px] ${getSubTextClassName()} mb-1`}>
+                                      {employee.onboardingData?.workExperience?.currentJobTitle || employee.personalSummary?.summary?.substring(0, 30) || 'Job Seeker'}
+                                    </p>
+                                    <p className={`text-[11px] ${getSubTextClassName()} mb-3`}>
+                                      {employee.onboardingData?.personalDetails?.address || 'Location not specified'}
+                                    </p>
+                                    
+                                    {/* Connection Status Badge */}
+                                    {employee.connectionStatus === 'accepted' && (
+                                      <motion.div 
+                                        initial={{ opacity: 0, scale: 0 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        className="mb-2"
+                                      >
+                                        <span className="px-2 py-1 bg-green-100 text-green-800 text-[10px] rounded-full font-medium">
+                                          ✓ Connected
+                                        </span>
+                                      </motion.div>
+                                    )}
+                                    {employee.connectionStatus === 'pending' && (
+                                      <motion.div 
+                                        initial={{ opacity: 0, scale: 0 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        className="mb-2"
+                                      >
+                                        <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-[10px] rounded-full font-medium">
+                                          ⏳ Pending
+                                        </span>
+                                      </motion.div>
+                                    )}
+                                    
+                                    <div className="flex flex-col space-y-2">
+                                      {employee.connectionStatus === 'none' || employee.connectionStatus === 'rejected' ? (
+                                        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                                          <Button 
+                                            onClick={() => sendConnectionRequest(employee._id)}
+                                            disabled={connectionRequestLoading.has(employee._id)}
+                                            className="w-full bg-[#00EA72] hover:bg-[#00D66C] text-black text-[11px] px-3 py-1 rounded-full font-semibold"
+                                          >
+                                            {connectionRequestLoading.has(employee._id) ? '⏳ Sending...' : '➕ Send Request'}
+                                          </Button>
+                                        </motion.div>
+                                      ) : employee.connectionStatus === 'accepted' ? (
+                                        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                                          <Button 
+                                            onClick={() => router.push(`/chats?userId=${employee._id}`)}
+                                            className="w-full bg-blue-500 hover:bg-blue-600 text-white text-[11px] px-3 py-1 rounded-full font-semibold"
+                                          >
+                                            💬 Message
+                                          </Button>
+                                        </motion.div>
+                                      ) : null}
+                                    </div>
+                                  </motion.div>
+                                ))
+                              ) : (
+                                <motion.div
+                                  initial={{ opacity: 0 }}
+                                  animate={{ opacity: 1 }}
+                                  className="col-span-2 text-center py-8"
+                                >
+                                  <p className={getSubTextClassName()}>No employees found</p>
                                 </motion.div>
-                              </div>
-                            </motion.div>
-                          ))}
-                        </motion.div>
+                              )
+                            ) : (
+                              // Employee view: Show accepted connections
+                              connections.length > 0 ? (
+                                connections.map((connection, index) => (
+                                  <motion.div 
+                                    key={connection.connectionId} 
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ delay: 0.45 + (index * 0.05) }}
+                                    whileHover={{ scale: 1.03, y: -5 }}
+                                    className={`${getCardClassName()} rounded-lg p-4 shadow-sm border ${theme === 'dark' ? 'border-gray-700' : 'border-gray-100'} text-center`}
+                                  >
+                                    <motion.div 
+                                      className="relative mx-auto mb-3 w-12 h-12"
+                                      whileHover={{ scale: 1.1 }}
+                                      transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                                    >
+                                      <div className="w-12 h-12 bg-gradient-to-br from-[#00EA72] to-[#00D66C] rounded-full flex items-center justify-center">
+                                        <User className="w-6 h-6 text-white" />
+                                      </div>
+                                      <motion.div 
+                                        initial={{ scale: 0 }}
+                                        animate={{ scale: 1 }}
+                                        transition={{ delay: 0.5 + (index * 0.05), type: "spring" }}
+                                        className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"
+                                      />
+                                    </motion.div>
+                                    <h4 className={`font-semibold text-[14px] ${getTextClassName()} mb-1`}>
+                                      {connection.fullName}
+                                    </h4>
+                                    <p className={`text-[12px] ${getSubTextClassName()} mb-1`}>
+                                      {connection.businessSummary?.companyName || 'Employer'}
+                                    </p>
+                                    <p className={`text-[11px] ${getSubTextClassName()} mb-3`}>
+                                      Connected {new Date(connection.connectedAt).toLocaleDateString()}
+                                    </p>
+                                    <div className="flex flex-col space-y-2">
+                                      <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                                        <Button 
+                                          onClick={() => router.push(`/chats?userId=${connection.userId}`)}
+                                          className="w-full bg-[#00EA72] hover:bg-[#00D66C] text-black text-[11px] px-3 py-1 rounded-full font-semibold"
+                                        >
+                                          💬 Message
+                                        </Button>
+                                      </motion.div>
+                                    </div>
+                                  </motion.div>
+                                ))
+                              ) : (
+                                <motion.div
+                                  initial={{ opacity: 0 }}
+                                  animate={{ opacity: 1 }}
+                                  className="col-span-2 text-center py-8"
+                                >
+                                  <p className={getSubTextClassName()}>No connections yet</p>
+                                  <p className={`text-sm ${getSubTextClassName()} mt-2`}>
+                                    Accept connection requests to start networking
+                                  </p>
+                                </motion.div>
+                              )
+                            )}
+                          </motion.div>
+                        )}
                       </div>
                     </motion.div>
                   </motion.div>

@@ -1,6 +1,7 @@
 const Chat = require('../models/Chat');
 const Job = require('../models/Job');
 const User = require('../models/User');
+const Connection = require('../models/Connection');
 const notificationController = require('./notificationController');
 
 // Get or create a chat between job seeker and employer for a specific job
@@ -36,6 +37,25 @@ exports.getOrCreateChat = async (req, res) => {
     } else {
       employerId = job.employerId;
       jobSeekerId = userId;
+    }
+
+    // Check if users are connected (for direct messaging outside job context)
+    // Skip connection check for job-related chats (they can chat about the job)
+    // But for general networking, check connection status
+    if (!jobId || req.query.requireConnection === 'true') {
+      const connection = await Connection.findOne({
+        $or: [
+          { senderId: employerId, receiverId: jobSeekerId, status: 'accepted' },
+          { senderId: jobSeekerId, receiverId: employerId, status: 'accepted' }
+        ]
+      });
+
+      if (!connection) {
+        return res.status(403).json({ 
+          message: 'You need to be connected to start a chat. Please send a connection request first.',
+          notConnected: true 
+        });
+      }
     }
 
     // Find or create chat
@@ -94,6 +114,83 @@ exports.getUserChats = async (req, res) => {
   }
 };
 
+// Get or create a direct message chat between two connected users
+exports.getOrCreateDirectChat = async (req, res) => {
+  try {
+    const { otherUserId } = req.params;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    if (!otherUserId) {
+      return res.status(400).json({ message: 'Other user ID required' });
+    }
+
+    // Verify the other user exists
+    const otherUser = await User.findById(otherUserId);
+    if (!otherUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Check if users are connected
+    const connection = await Connection.findOne({
+      $or: [
+        { senderId: userId, receiverId: otherUserId, status: 'accepted' },
+        { senderId: otherUserId, receiverId: userId, status: 'accepted' }
+      ]
+    });
+
+    if (!connection) {
+      return res.status(403).json({ 
+        message: 'You need to be connected to start a direct chat.',
+        notConnected: true 
+      });
+    }
+
+    // Determine employer and job seeker IDs
+    let employerId, jobSeekerId;
+    if (userRole === 'employer') {
+      employerId = userId;
+      jobSeekerId = otherUserId;
+    } else if (otherUser.role === 'employer') {
+      employerId = otherUserId;
+      jobSeekerId = userId;
+    } else {
+      // Both are employees/job seekers - use alphabetical order for consistency
+      [employerId, jobSeekerId] = [userId, otherUserId].sort();
+    }
+
+    // Find or create direct chat (no jobId)
+    let chat = await Chat.findOne({
+      chatType: 'direct',
+      employerId,
+      jobSeekerId,
+      jobId: null
+    }).populate('employerId', 'fullName email role personalDetails.profileImage businessSummary.companyLogo')
+      .populate('jobSeekerId', 'fullName email role personalDetails.profileImage businessSummary.companyLogo');
+
+    if (!chat) {
+      chat = await Chat.create({
+        chatType: 'direct',
+        employerId,
+        jobSeekerId,
+        jobId: null,
+        messages: [],
+        isPermanent: true,
+        acceptedByEmployer: true // Direct chats are automatically accepted
+      });
+
+      chat = await Chat.findById(chat._id)
+        .populate('employerId', 'fullName email role personalDetails.profileImage businessSummary.companyLogo')
+        .populate('jobSeekerId', 'fullName email role personalDetails.profileImage businessSummary.companyLogo');
+    }
+
+    res.json({ chat });
+  } catch (error) {
+    console.error('Error in getOrCreateDirectChat:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 // Get chats for a specific job (for employer)
 exports.getJobChats = async (req, res) => {
   try {
@@ -139,25 +236,28 @@ exports.sendMessage = async (req, res) => {
       return res.status(404).json({ message: 'Chat not found' });
     }
 
-    // Check if the job is closed
-    if (chat.jobId && (chat.jobId.status === 'closed' || !chat.jobId.isActive)) {
-      return res.status(403).json({ 
-        message: 'This job has been closed. Chatting is no longer available.',
-        jobClosed: true 
-      });
-    }
-
     // Verify user is part of this chat
     if (chat.employerId.toString() !== userId && chat.jobSeekerId.toString() !== userId) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
-    // Check if chat is closed by employer
-    if (chat.closedByEmployer) {
-      return res.status(403).json({ 
-        message: 'This conversation has been closed by the employer',
-        chatClosed: true
-      });
+    // Skip closure checks for direct messages - they are permanent
+    if (chat.chatType !== 'direct' && !chat.isPermanent) {
+      // Check if the job is closed (only for job-related chats)
+      if (chat.jobId && (chat.jobId.status === 'closed' || !chat.jobId.isActive)) {
+        return res.status(403).json({ 
+          message: 'This job has been closed. Chatting is no longer available.',
+          jobClosed: true 
+        });
+      }
+
+      // Check if chat is closed by employer (only for job-related chats)
+      if (chat.closedByEmployer) {
+        return res.status(403).json({ 
+          message: 'This conversation has been closed by the employer',
+          chatClosed: true
+        });
+      }
     }
 
     // Add message

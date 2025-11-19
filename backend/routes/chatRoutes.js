@@ -10,11 +10,15 @@ const {
   deleteChat,
   acceptChat,
   closeChat,
-  reopenChat
+  reopenChat,
+  getOrCreateDirectChat
 } = require('../controllers/chatController');
 
 // Get all chats for logged-in user
 router.get('/', protect, getUserChats);
+
+// Get or create a direct message chat with another user
+router.get('/direct/:otherUserId', protect, getOrCreateDirectChat);
 
 // Get or create a chat for a specific job
 router.get('/job/:jobId', protect, getOrCreateChat);

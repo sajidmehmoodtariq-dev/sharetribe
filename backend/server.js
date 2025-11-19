@@ -57,6 +57,7 @@ const jobRoutes = require('./routes/jobRoutes');
 const applicationRoutes = require('./routes/applicationRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const connectionRoutes = require('./routes/connectionRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/stripe', stripeRoutes);
@@ -66,6 +67,7 @@ app.use('/api/jobs', jobRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/chats', chatRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/connections', connectionRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

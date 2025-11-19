@@ -26,10 +26,15 @@ const messageSchema = new mongoose.Schema({
 });
 
 const chatSchema = new mongoose.Schema({
+  chatType: {
+    type: String,
+    enum: ['job', 'direct'],
+    default: 'job'
+  },
   jobId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Job',
-    required: true
+    required: false // Not required for direct messages
   },
   employerId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -69,6 +74,10 @@ const chatSchema = new mongoose.Schema({
   closedAt: {
     type: Date,
     default: null
+  },
+  isPermanent: {
+    type: Boolean,
+    default: false // Direct chats are permanent and cannot be closed
   }
 }, {
   timestamps: true
@@ -78,5 +87,6 @@ const chatSchema = new mongoose.Schema({
 chatSchema.index({ jobId: 1, employerId: 1, jobSeekerId: 1 });
 chatSchema.index({ employerId: 1 });
 chatSchema.index({ jobSeekerId: 1 });
+chatSchema.index({ chatType: 1, employerId: 1, jobSeekerId: 1 });
 
 module.exports = mongoose.model('Chat', chatSchema);

@@ -52,29 +52,36 @@ export default function ChatsPage() {
     };
   }, []);
 
-  // Handle chatId or jobId from URL query params - only run once
+  // Handle chatId, userId, or jobId from URL query params - only run once
   useEffect(() => {
-    if (chats.length > 0 && !hasAutoSelected && typeof window !== 'undefined') {
+    if (!hasAutoSelected && typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const chatId = params.get('chatId');
+      const userId = params.get('userId');
       const jobId = params.get('jobId');
       
-      if (chatId) {
-        const chat = chats.find(c => c._id === chatId);
-        if (chat) {
-          selectChat(chat);
-          setHasAutoSelected(true);
-        }
-      } else if (jobId) {
-        // Select first chat for this job
-        const chat = chats.find(c => c.jobId?._id === jobId);
-        if (chat) {
-          selectChat(chat);
-          setHasAutoSelected(true);
+      if (userId && user) {
+        // Create or get direct chat with this user
+        handleDirectChat(userId);
+        setHasAutoSelected(true);
+      } else if (chats.length > 0) {
+        if (chatId) {
+          const chat = chats.find(c => c._id === chatId);
+          if (chat) {
+            selectChat(chat);
+            setHasAutoSelected(true);
+          }
+        } else if (jobId) {
+          // Select first chat for this job
+          const chat = chats.find(c => c.jobId?._id === jobId);
+          if (chat) {
+            selectChat(chat);
+            setHasAutoSelected(true);
+          }
         }
       }
     }
-  }, [chats, hasAutoSelected]);
+  }, [chats, hasAutoSelected, user]);
 
   useEffect(() => {
     scrollToBottom();
@@ -144,6 +151,40 @@ export default function ChatsPage() {
     }
   };
 
+  const handleDirectChat = async (otherUserId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(
+        `${BACKEND_URL}/api/chats/direct/${otherUserId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        // Add the new chat to the list if it doesn't exist
+        setChats(prevChats => {
+          const exists = prevChats.find(c => c._id === data.chat._id);
+          if (exists) {
+            return prevChats;
+          }
+          return [data.chat, ...prevChats];
+        });
+        // Select the chat
+        selectChat(data.chat);
+      } else {
+        const errorData = await response.json();
+        alert(errorData.message || 'Failed to create chat');
+        router.push('/home');
+      }
+    } catch (error) {
+      console.error('Error creating direct chat:', error);
+      alert('Failed to create chat');
+      router.push('/home');
+    }
+  };
+
   const selectChat = async (chat) => {
     setSelectedChat(chat);
     setShowChatList(false); // Hide chat list on mobile
@@ -179,13 +220,25 @@ export default function ChatsPage() {
     e.preventDefault();
     if (!message.trim() || !selectedChat || sending) return;
 
-    // Check if job is closed
-    if (selectedChat.jobId?.status === 'closed' || !selectedChat.jobId?.isActive) {
-      alert('This job has been closed. Chatting is no longer available.');
-      return;
-    }
+    // Direct messages are always available - skip all closure checks
+    if (selectedChat.chatType === 'direct' || selectedChat.isPermanent) {
+      // Direct messages are permanent and always open
+      setSending(true);
+    } else {
+      // For job-related chats only: check if chat is closed by employer
+      if (selectedChat.closedByEmployer) {
+        alert('This conversation has been closed. Please ask the employer to reopen it.');
+        return;
+      }
 
-    setSending(true);
+      // Check if job is closed
+      if (selectedChat.jobId && (selectedChat.jobId?.status === 'closed' || !selectedChat.jobId?.isActive)) {
+        alert('This job has been closed. Chatting is no longer available.');
+        return;
+      }
+
+      setSending(true);
+    }
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(
@@ -307,16 +360,26 @@ export default function ChatsPage() {
 
       if (response.ok) {
         const data = await response.json();
-        // Update the chat in list
-        setChats(prevChats =>
-          prevChats.map(c => c._id === chatToClose ? data.chat : c)
-        );
-        // Update selected chat if it's the one being closed/reopened
+        
+        // Update selected chat FIRST if it's the one being closed/reopened
         if (selectedChat?._id === chatToClose) {
-          setSelectedChat(data.chat);
+          setSelectedChat(prev => ({
+            ...prev,
+            closedByEmployer: closeAction === 'close',
+            closedAt: closeAction === 'close' ? new Date() : null
+          }));
         }
         
-        // Force immediate refresh
+        // Then update the chat in list
+        setChats(prevChats =>
+          prevChats.map(c => c._id === chatToClose ? {
+            ...c,
+            closedByEmployer: closeAction === 'close',
+            closedAt: closeAction === 'close' ? new Date() : null
+          } : c)
+        );
+        
+        // Force immediate refresh to get full updated data from server
         await fetchChats(true);
       }
     } catch (error) {
@@ -494,13 +557,25 @@ export default function ChatsPage() {
                           )}
                         </div>
                         <div className="flex items-center gap-2 mb-1">
-                          <p className={`text-sm ${getSubTextClassName()} truncate`}>
-                            {chat.jobId?.jobDetails?.jobTitle || 'Job Position'}
-                          </p>
-                          {(chat.jobId?.status === 'closed' || !chat.jobId?.isActive) && (
-                            <span className="px-2 py-0.5 bg-red-500 text-white text-[10px] rounded-full font-semibold shrink-0">
-                              Closed
+                          {chat.chatType === 'direct' ? (
+                            <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400 font-medium">
+                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                                <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                              </svg>
+                              Direct Message
                             </span>
+                          ) : (
+                            <>
+                              <p className={`text-sm ${getSubTextClassName()} truncate`}>
+                                {chat.jobId?.jobDetails?.jobTitle || 'Job Position'}
+                              </p>
+                              {(chat.jobId?.status === 'closed' || !chat.jobId?.isActive) && (
+                                <span className="px-2 py-0.5 bg-red-500 text-white text-[10px] rounded-full font-semibold shrink-0">
+                                  Closed
+                                </span>
+                              )}
+                            </>
                           )}
                         </div>
                         {lastMessage && (
@@ -585,7 +660,14 @@ export default function ChatsPage() {
                       {getOtherUser(selectedChat)?.fullName || getOtherUser(selectedChat)?.name || 'Unknown User'}
                     </h2>
                     <p className={`text-xs ${getSubTextClassName()}`}>
-                      {selectedChat.jobId?.jobDetails?.jobTitle || 'Job Position'}
+                      {selectedChat.chatType === 'direct' ? (
+                        <span className="flex items-center gap-1">
+                          <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
+                          Direct Message
+                        </span>
+                      ) : (
+                        selectedChat.jobId?.jobDetails?.jobTitle || 'Job Position'
+                      )}
                     </p>
                   </div>
                 </div>
@@ -605,7 +687,8 @@ export default function ChatsPage() {
                     </svg>
                   </motion.button>
 
-                  {user?.role === 'employer' && (
+                  {/* Show Close button only for job-related chats, not for direct messages */}
+                  {user?.role === 'employer' && selectedChat.chatType !== 'direct' && !selectedChat.isPermanent && (
                     <>
                       {selectedChat.closedByEmployer ? (
                         <button
@@ -623,6 +706,16 @@ export default function ChatsPage() {
                         </button>
                       )}
                     </>
+                  )}
+                  
+                  {/* For direct messages, show a lock icon indicating it's permanent */}
+                  {selectedChat.chatType === 'direct' && (
+                    <div className="flex items-center px-3 py-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs font-medium">
+                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                      </svg>
+                      Permanent
+                    </div>
                   )}
                 </div>
               </div>
