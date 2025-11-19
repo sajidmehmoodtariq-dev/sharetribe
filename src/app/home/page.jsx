@@ -121,17 +121,9 @@ export default function HomePage() {
           const data = await response.json();
           setUser(data.user);
           
-          console.log('=== USER DATA FROM DATABASE ===');
-          console.log('User:', data.user.email);
-          console.log('Subscription Status:', data.user.subscriptionStatus);
-          console.log('Has Active Subscription:', data.user.subscriptionStatus === 'active');
-          
           // Show payment banner ONLY if user doesn't have active subscription
           const hasActiveSubscription = data.user.subscriptionStatus === 'active';
           setShowPaymentBanner(!hasActiveSubscription);
-          
-          console.log('Should Show Payment Banner:', !hasActiveSubscription);
-          console.log('================================');
           
           // Set initial tab based on role
           if (data.user.role === 'employer') {
@@ -187,9 +179,6 @@ export default function HomePage() {
       // Clean URL
       window.history.replaceState({}, '', '/home');
       
-      // Show success message
-      alert('🎉 Payment successful! All features are now unlocked.');
-      
       // Refresh user data to get updated subscription status
       const fetchUpdatedUser = async () => {
         try {
@@ -217,13 +206,9 @@ export default function HomePage() {
       // Clean URL
       window.history.replaceState({}, '', '/home');
       
-      // Show welcome message
-      alert('🎉 Welcome! Your profile is complete and all features are unlocked.');
-      
       // Force reload to refresh subscription status
       window.location.reload();
     } else if (paymentStatus === 'cancelled') {
-      alert('Payment was cancelled. You can subscribe anytime from the payment banner.');
       // Clean URL
       window.history.replaceState({}, '', '/home');
     }
@@ -320,11 +305,6 @@ export default function HomePage() {
       
       // Check if user has active subscription from database
       const hasActiveSubscription = user?.subscriptionStatus === 'active';
-      
-      console.log('=== FETCH MY JOBS ===');
-      console.log('User Subscription Status:', user?.subscriptionStatus);
-      console.log('Has Active Subscription:', hasActiveSubscription);
-      console.log('Will show dummy data:', !hasActiveSubscription);
       
       // If no active subscription, show dummy data
       if (!hasActiveSubscription) {
@@ -1115,29 +1095,6 @@ export default function HomePage() {
     }
   };
 
-  // TEST ONLY - Remove in production
-  const testActivateSubscription = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/stripe/test-activate`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        alert('✅ Subscription activated! Refreshing...');
-        window.location.reload();
-      } else {
-        alert('❌ Failed to activate subscription');
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      alert('❌ Error activating subscription');
-    }
-  };
-
   const handleLiveChat = () => {
     // Handle live chat functionality
     console.log('Opening live chat...');
@@ -1467,16 +1424,6 @@ export default function HomePage() {
                       className="px-6 py-2.5 bg-white text-orange-600 rounded-xl font-bold text-sm shadow-lg hover:shadow-xl transition-all whitespace-nowrap"
                     >
                       💳 Subscribe Now
-                    </motion.button>
-                    {/* TEST BUTTON - Remove in production */}
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={testActivateSubscription}
-                      className="px-4 py-2.5 bg-green-500 text-white rounded-xl font-bold text-sm shadow-lg hover:shadow-xl transition-all whitespace-nowrap"
-                      title="Test: Activate subscription without payment"
-                    >
-                      🧪 TEST
                     </motion.button>
                     <button
                       onClick={() => {
@@ -2557,7 +2504,7 @@ export default function HomePage() {
                         const isApplication = job.jobId && job.applicantId;
                         const jobData = isApplication ? job.jobId : job;
                         const jobId = jobData._id || jobData.id || job._id;
-                        const isClosed = jobData.status === 'closed' || !jobData.isActive;
+                        const isClosed = jobData.status === 'closed' || jobData.isActive === false;
                         
                         return (
                         <motion.div 

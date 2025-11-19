@@ -10,6 +10,7 @@ export default function CreateJob() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
   const [job, setJob] = useState(null);
   const [error, setError] = useState(null);
 
@@ -17,13 +18,22 @@ export default function CreateJob() {
     // Check if user is authenticated
     const checkAuth = async () => {
       try {
-        const response = await fetch('/api/auth/me', {
+        const token = localStorage.getItem('token');
+        
+        if (!token) {
+          router.push('/login/role-selection');
+          return;
+        }
+
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/me`, {
           method: 'GET',
-          credentials: 'include'
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
         });
 
         if (!response.ok) {
-          router.push('/login');
+          router.push('/login/role-selection');
           return;
         }
 
@@ -40,7 +50,7 @@ export default function CreateJob() {
         setLoading(false);
       } catch (err) {
         console.error('Auth check failed:', err);
-        router.push('/login');
+        router.push('/login/role-selection');
       }
     };
 
@@ -48,7 +58,10 @@ export default function CreateJob() {
   }, [router]);
 
   const handleCreateJob = async () => {
+    if (creating) return; // Prevent double clicks
+    
     try {
+      setCreating(true);
       setError(null);
       const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/jobs/create`, {
         method: 'POST',
@@ -72,6 +85,7 @@ export default function CreateJob() {
       router.push(`/employer/create-job/${data.job._id}/step-1`);
     } catch (err) {
       setError(err.message);
+      setCreating(false);
     }
   };
 
@@ -172,12 +186,20 @@ export default function CreateJob() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1.0 }}
-            whileHover={{ scale: 1.02, y: -2 }}
-            whileTap={{ scale: 0.98 }}
+            whileHover={{ scale: creating ? 1 : 1.02, y: creating ? 0 : -2 }}
+            whileTap={{ scale: creating ? 1 : 0.98 }}
             onClick={handleCreateJob}
-            className="w-full py-3 bg-[#00EA72] hover:bg-[#00D66C] text-black font-semibold rounded-full transition-all shadow-md hover:shadow-lg mb-3"
+            disabled={creating}
+            className="w-full py-3 bg-[#00EA72] hover:bg-[#00D66C] text-black font-semibold rounded-full transition-all shadow-md hover:shadow-lg mb-3 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            Start Creating Job →
+            {creating ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-black"></div>
+                Creating...
+              </>
+            ) : (
+              'Start Creating Job →'
+            )}
           </motion.button>
 
           <motion.div

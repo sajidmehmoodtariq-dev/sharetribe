@@ -70,8 +70,6 @@ export default function AvailabilityPage() {
 
       // Clear payment banner flag since user has completed onboarding and paid
       localStorage.removeItem('showPaymentBanner');
-
-      alert('Profile completed successfully!');
       
       // Redirect to home page with success flag to refresh subscription status
       router.push('/home?onboarding=complete');

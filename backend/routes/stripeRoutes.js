@@ -17,7 +17,4 @@ router.post('/webhook', stripeController.handleWebhook);
 router.get('/subscription', protect, stripeController.getSubscription);
 router.post('/cancel-subscription', protect, stripeController.cancelSubscription);
 
-// TEST ONLY - Manually activate subscription (remove in production)
-router.post('/test-activate', protect, stripeController.testActivateSubscription);
-
 module.exports = router;

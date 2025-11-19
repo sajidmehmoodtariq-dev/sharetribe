@@ -97,13 +97,50 @@ exports.acceptConnectionRequest = async (req, res) => {
     connection.respondedAt = new Date();
     await connection.save();
 
+    // Create a permanent direct chat for network connections
+    const Chat = require('../models/Chat');
+    
+    // Determine employerId and jobSeekerId based on roles
+    const sender = await User.findById(connection.senderId);
+    const receiver = await User.findById(connection.receiverId);
+    
+    let employerId, jobSeekerId;
+    if (sender.role === 'employer') {
+      employerId = sender._id;
+      jobSeekerId = receiver._id;
+    } else {
+      employerId = receiver._id;
+      jobSeekerId = sender._id;
+    }
+
+    // Check if a direct chat already exists between these users
+    let directChat = await Chat.findOne({
+      chatType: 'direct',
+      employerId: employerId,
+      jobSeekerId: jobSeekerId
+    });
+
+    // Create new direct chat if it doesn't exist
+    if (!directChat) {
+      directChat = await Chat.create({
+        chatType: 'direct',
+        employerId: employerId,
+        jobSeekerId: jobSeekerId,
+        isPermanent: true,
+        acceptedByEmployer: true,
+        closedByEmployer: false
+        // Note: No jobId for direct chats
+      });
+    }
+
     const populatedConnection = await Connection.findById(connection._id)
       .populate('senderId', 'fullName email role businessSummary')
       .populate('receiverId', 'fullName email role businessSummary');
 
     res.status(200).json({ 
       message: 'Connection accepted',
-      connection: populatedConnection 
+      connection: populatedConnection,
+      chatId: directChat._id
     });
   } catch (error) {
     console.error('Error accepting connection:', error);

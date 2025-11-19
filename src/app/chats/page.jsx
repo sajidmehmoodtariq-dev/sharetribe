@@ -807,7 +807,7 @@ export default function ChatsPage() {
 
               {/* Message Input */}
               <div className={`p-4 border-t ${theme === 'dark' ? 'border-gray-700/50' : 'border-gray-200'}`}>
-                {(selectedChat.jobId?.status === 'closed' || !selectedChat.jobId?.isActive) ? (
+                {selectedChat.chatType !== 'direct' && !selectedChat.isPermanent && (selectedChat.jobId?.status === 'closed' || !selectedChat.jobId?.isActive) ? (
                   <div className={`text-center py-4 px-6 rounded-2xl ${theme === 'dark' ? 'bg-red-900/30 border border-red-700' : 'bg-red-50 border border-red-200'}`}>
                     <svg className="w-8 h-8 mx-auto mb-2 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -819,7 +819,7 @@ export default function ChatsPage() {
                       Chatting is no longer available for this position
                     </p>
                   </div>
-                ) : selectedChat.closedByEmployer && user?.role !== 'employer' ? (
+                ) : selectedChat.chatType !== 'direct' && !selectedChat.isPermanent && selectedChat.closedByEmployer && user?.role !== 'employer' ? (
                   <div className={`text-center py-4 px-6 rounded-2xl ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'}`}>
                     <p className={`text-sm ${getSubTextClassName()}`}>
                       This conversation has been closed by the employer
