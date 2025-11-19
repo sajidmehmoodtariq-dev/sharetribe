@@ -1686,7 +1686,7 @@ export default function HomePage() {
                       setShowSettings(false);
                       setShowProfile(true);
                     }}
-                    className={`w-full text-left p-4 rounded-lg hover:bg-gray-50 ${getTextClassName()}`}
+                    className={`w-full text-left p-4 rounded-lg ${theme === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-gray-50'} ${getTextClassName()}`}
                   >
                     My Profile Card
                   </motion.button>
@@ -2013,7 +2013,7 @@ export default function HomePage() {
                               transition={{ delay: 0.35 + (index * 0.05) }}
                               whileHover={{ scale: 1.05 }}
                               whileTap={{ scale: 0.95 }}
-                              className="px-4 py-2 rounded-full border border-gray-300 text-gray-700 text-[12px] font-medium flex items-center space-x-1"
+                              className="px-4 py-2 rounded-full border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-[12px] font-medium flex items-center space-x-1"
                             >
                               <span>{filter}</span>
                               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2038,7 +2038,7 @@ export default function HomePage() {
                             <select 
                               value={sortConnectionsBy}
                               onChange={(e) => setSortConnectionsBy(e.target.value)}
-                              className="text-sm border border-gray-300 rounded px-2 py-1"
+                              className="text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded px-2 py-1"
                             >
                               <option>Alphabetical</option>
                               <option>Order (A-Z)</option>
@@ -2186,7 +2186,7 @@ export default function HomePage() {
                                         animate={{ opacity: 1, scale: 1 }}
                                         className="mb-2"
                                       >
-                                        <span className="px-2 py-1 bg-green-100 text-green-800 text-[10px] rounded-full font-medium">
+                                        <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 text-[10px] rounded-full font-medium">
                                           ✓ Connected
                                         </span>
                                       </motion.div>
@@ -2197,7 +2197,7 @@ export default function HomePage() {
                                         animate={{ opacity: 1, scale: 1 }}
                                         className="mb-2"
                                       >
-                                        <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-[10px] rounded-full font-medium">
+                                        <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 text-[10px] rounded-full font-medium">
                                           ⏳ Pending
                                         </span>
                                       </motion.div>
@@ -2534,11 +2534,11 @@ export default function HomePage() {
                             {isApplication && job.status && (
                               <div className="mb-2">
                                 <span className={`px-2 py-1 text-[10px] rounded-full ${
-                                  job.status === 'accepted' ? 'bg-green-100 text-green-800' :
-                                  job.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                                  job.status === 'interviewing' ? 'bg-blue-100 text-blue-800' :
-                                  job.status === 'shortlisted' ? 'bg-purple-100 text-purple-800' :
-                                  'bg-gray-100 text-gray-800'
+                                  job.status === 'accepted' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
+                                  job.status === 'rejected' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' :
+                                  job.status === 'interviewing' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' :
+                                  job.status === 'shortlisted' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400' :
+                                  'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
                                 }`}>
                                   {job.status.charAt(0).toUpperCase() + job.status.slice(1)}
                                 </span>
@@ -2548,11 +2548,11 @@ export default function HomePage() {
                             {activeTab === 'My Jobs' && user?.role === 'employer' && !isApplication && jobData.status && (
                               <div className="mb-2">
                                 <span className={`px-2 py-1 text-[10px] rounded-full ${
-                                  jobData.status === 'published' || jobData.status === 'active' ? 'bg-green-100 text-green-800' :
-                                  jobData.status === 'draft' ? 'bg-yellow-100 text-yellow-800' :
-                                  jobData.status === 'closed' ? 'bg-red-100 text-red-800' :
-                                  jobData.status === 'archived' ? 'bg-gray-100 text-gray-800' :
-                                  'bg-blue-100 text-blue-800'
+                                  jobData.status === 'published' || jobData.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
+                                  jobData.status === 'draft' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                                  jobData.status === 'closed' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' :
+                                  jobData.status === 'archived' ? 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300' :
+                                  'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
                                 }`}>
                                   {jobData.status.charAt(0).toUpperCase() + jobData.status.slice(1)}
                                 </span>

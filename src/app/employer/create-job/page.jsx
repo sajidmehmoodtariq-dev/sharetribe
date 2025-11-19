@@ -112,7 +112,7 @@ export default function CreateJob() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
-      className="min-h-screen bg-white p-6"
+      className="min-h-screen bg-white dark:bg-gray-900 p-6"
     >
       <motion.div
         initial={{ y: -20, opacity: 0 }}
@@ -120,8 +120,8 @@ export default function CreateJob() {
         transition={{ delay: 0.2 }}
         className="text-center mb-8"
       >
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Create a New Job Posting</h1>
-        <p className="text-gray-600">Post a job and find the perfect candidate for your team</p>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Create a New Job Posting</h1>
+        <p className="text-gray-600 dark:text-gray-400">Post a job and find the perfect candidate for your team</p>
       </motion.div>
 
       <motion.div
@@ -130,7 +130,7 @@ export default function CreateJob() {
         transition={{ delay: 0.3 }}
         className="max-w-2xl mx-auto"
       >
-        <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-8 shadow-sm">
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
@@ -143,7 +143,7 @@ export default function CreateJob() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
-            className="text-xl font-bold text-gray-900 text-center mb-2"
+            className="text-xl font-bold text-gray-900 dark:text-white text-center mb-2"
           >
             Get Started
           </motion.h2>
@@ -151,7 +151,7 @@ export default function CreateJob() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.6 }}
-            className="text-gray-600 text-center mb-6"
+            className="text-gray-600 dark:text-gray-400 text-center mb-6"
           >
             Follow our simple 4-step process:
           </motion.p>
@@ -169,14 +169,14 @@ export default function CreateJob() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.7 + index * 0.08 }}
                 whileHover={{ scale: 1.01, x: 3 }}
-                className="flex gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200 hover:border-[#00EA72] transition-all"
+                className="flex gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-600 hover:border-[#00EA72] transition-all"
               >
-                <div className="w-8 h-8 bg-[#00EA72] text-white rounded-full flex items-center justify-center font-bold text-sm shrink-0">
+                <div className="w-8 h-8 bg-[#00EA72] text-black rounded-full flex items-center justify-center font-bold text-sm shrink-0">
                   {step.num}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-gray-900 text-sm mb-0.5">{step.title}</h3>
-                  <p className="text-gray-600 text-xs">{step.desc}</p>
+                  <h3 className="font-semibold text-gray-900 dark:text-white text-sm mb-0.5">{step.title}</h3>
+                  <p className="text-gray-600 dark:text-gray-400 text-xs">{step.desc}</p>
                 </div>
               </motion.div>
             ))}
@@ -207,7 +207,7 @@ export default function CreateJob() {
             animate={{ opacity: 1 }}
             transition={{ delay: 1.1 }}
           >
-            <Link href="/home" className="block w-full py-3 bg-white hover:bg-gray-50 border border-gray-300 text-gray-700 font-medium rounded-full transition-all text-center">
+            <Link href="/home" className="block w-full py-3 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-medium rounded-full transition-all text-center">
               Back to Dashboard
             </Link>
           </motion.div>

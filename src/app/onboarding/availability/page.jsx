@@ -158,8 +158,8 @@ export default function AvailabilityPage() {
                       onClick={() => handleAvailabilityChange(timeSlot.key)}
                       className={`px-4 py-2 rounded-full text-[13px] font-medium transition-colors ${
                         availability[timeSlot.key]
-                          ? 'bg-[#00EA72] text-white'
-                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                          ? 'bg-[#00EA72] text-black'
+                          : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
                       }`}
                     >
                       {timeSlot.label}
