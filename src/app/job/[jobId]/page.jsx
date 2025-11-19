@@ -4,8 +4,6 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useTheme } from '@/components/ThemeProvider';
 import Link from 'next/link';
-export function generateStaticParams() { return []; }
-
 
 export default function JobDetails() {
   const { theme, getBackgroundStyle, getCardClassName, getTextClassName, getSubTextClassName } = useTheme();
