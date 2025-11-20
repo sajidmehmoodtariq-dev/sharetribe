@@ -58,7 +58,7 @@ export default function SignupSuccessPage() {
             alt="Head Huntd Logo"
             width={60}
             height={60}
-            className="object-contain"
+            className="object-contain dark:invert"
             priority
           />
         </div>

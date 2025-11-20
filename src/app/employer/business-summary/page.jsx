@@ -5,9 +5,12 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import Image from 'next/image';
+import { useTheme } from '@/components/ThemeProvider';
 
 export default function BusinessSummaryPage() {
   const router = useRouter();
+  const { getBackgroundStyle } = useTheme();
   const [businessSummary, setBusinessSummary] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -72,9 +75,14 @@ export default function BusinessSummaryPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center mb-4">
-            <svg className="w-16 h-16 text-white" viewBox="0 0 100 100" fill="currentColor">
-              <text x="10" y="70" fontSize="80" fontFamily="Arial" fontWeight="bold">|||</text>
-            </svg>
+            <Image
+              src="/logo.png"
+              alt="Head Huntd Logo"
+              width={64}
+              height={64}
+              className="object-contain dark:invert"
+              priority
+            />
           </div>
           <div className="text-white text-sm font-light tracking-wider">HEAD HUNTD</div>
         </div>

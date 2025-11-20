@@ -80,7 +80,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/auth/login', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...formData, role }),
@@ -137,10 +137,10 @@ export default function LoginPage() {
 
   return (
     <div 
-      className="min-h-screen flex items-center justify-center"
+      className="min-h-screen flex items-center justify-center bg-cover bg-center bg-no-repeat"
       style={getBackgroundStyle()}
     >
-      <div className="w-full max-w-[375px] mx-auto h-screen flex flex-col">
+      <div className="w-full max-w-[95%] sm:max-w-md mx-auto min-h-screen flex flex-col">
         {/* Logo at top */}
         <div className="flex justify-center pt-8 pb-6">
           <Image
@@ -148,7 +148,7 @@ export default function LoginPage() {
             alt="Head Huntd Logo"
             width={60}
             height={60}
-            className="object-contain"
+            className="object-contain dark:invert"
             priority
           />
         </div>

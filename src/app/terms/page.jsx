@@ -35,7 +35,7 @@ export default function TermsAndConditionsPage() {
               alt="Head Huntd Logo"
               width={50}
               height={50}
-              className="object-contain"
+              className="object-contain dark:invert"
               priority
             />
           </div>

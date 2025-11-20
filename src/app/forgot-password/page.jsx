@@ -52,9 +52,10 @@ export default function ForgotPasswordPage() {
 
   return (
     <div 
-      className="min-h-screen flex items-center justify-center bg-gray-50"
+      className="min-h-screen flex items-center justify-center bg-cover bg-center bg-no-repeat"
+      style={getBackgroundStyle()}
     >
-      <div className="w-full max-w-[375px] mx-auto h-screen flex flex-col">
+      <div className="w-full max-w-[95%] sm:max-w-md mx-auto min-h-screen flex flex-col">
         {/* Logo at top */}
         <div className="flex justify-center pt-8 pb-6">
           <Image
@@ -62,20 +63,20 @@ export default function ForgotPasswordPage() {
             alt="Head Huntd Logo"
             width={60}
             height={60}
-            className="object-contain"
+            className="object-contain dark:invert"
             priority
           />
         </div>
 
         {/* White Form Card */}
         <div className="flex-1 mx-4">
-          <div className="bg-white rounded-3xl px-8 py-10 h-full shadow-sm">
+          <div className={`${getCardClassName()} rounded-3xl px-8 py-10 h-full shadow-sm`}>
             {/* Welcome Text */}
             <div className="text-center mb-8">
-              <h1 className="text-[22px] font-bold text-black leading-tight mb-4">
+              <h1 className={`text-[22px] font-bold ${getTextClassName()} leading-tight mb-4`}>
                 Forgot your password?
               </h1>
-              <p className="text-[13px] text-[#464646] leading-relaxed">
+              <p className={`text-[13px] ${getSubTextClassName()} leading-relaxed`}>
                 Enter your email to reset your password. We will send you a 5 digit verification code to reset your password
               </p>
             </div>
@@ -90,7 +91,7 @@ export default function ForgotPasswordPage() {
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Email Address */}
               <div>
-                <Label htmlFor="email" className="text-[13px] font-medium text-black mb-2 block">
+                <Label htmlFor="email" className={`text-[13px] font-medium ${getTextClassName()} mb-2 block`}>
                   Email Address
                 </Label>
                 <Input
@@ -100,7 +101,7 @@ export default function ForgotPasswordPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full h-12 border border-gray-300 rounded-full bg-white text-[13px] text-black px-4 focus:border-gray-300 focus:ring-0"
+                  className={`${getInputClassName()} text-[13px]`}
                 />
               </div>
 

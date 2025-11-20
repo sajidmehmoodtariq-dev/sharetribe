@@ -1,13 +1,20 @@
 'use client';
 
+import Image from 'next/image';
+
 export default function OfflinePage() {
   return (
     <div className="min-h-screen bg-black flex items-center justify-center p-4">
       <div className="text-center">
         <div className="inline-flex items-center justify-center mb-8">
-          <svg className="w-24 h-24 text-white" viewBox="0 0 100 100" fill="currentColor">
-            <text x="10" y="70" fontSize="80" fontFamily="Arial" fontWeight="bold">|||</text>
-          </svg>
+          <Image
+            src="/logo.png"
+            alt="Head Huntd Logo"
+            width={96}
+            height={96}
+            className="object-contain invert"
+            priority
+          />
         </div>
         
         <div className="max-w-md mx-auto">

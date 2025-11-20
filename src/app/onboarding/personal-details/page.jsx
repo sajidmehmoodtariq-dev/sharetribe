@@ -204,13 +204,13 @@ export default function PersonalDetailsPage() {
         )}
         
         {/* Logo at top */}
-        <div className={`flex justify-center ${showPaymentSuccess ? 'pt-24' : 'pt-8'} pb-6`}>
+        <div className="flex justify-center pt-8 pb-6">
           <Image
             src="/logo.png"
             alt="Head Huntd Logo"
             width={60}
             height={60}
-            className="object-contain"
+            className="object-contain dark:invert"
             priority
           />
         </div>

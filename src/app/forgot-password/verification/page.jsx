@@ -5,11 +5,13 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useTheme } from '@/components/ThemeProvider';
 
 export default function EmailVerificationPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get('email');
+  const { getBackgroundStyle, getCardClassName, getTextClassName, getSubTextClassName } = useTheme();
   
   const [code, setCode] = useState(['', '', '', '', '']);
   const [loading, setLoading] = useState(false);
@@ -137,9 +139,10 @@ export default function EmailVerificationPage() {
 
   return (
     <div 
-      className="min-h-screen flex items-center justify-center bg-gray-50"
+      className="min-h-screen flex items-center justify-center bg-cover bg-center bg-no-repeat"
+      style={getBackgroundStyle()}
     >
-      <div className="w-full max-w-[375px] mx-auto h-screen flex flex-col">
+      <div className="w-full max-w-[95%] sm:max-w-md mx-auto min-h-screen flex flex-col">
         {/* Logo at top */}
         <div className="flex justify-center pt-8 pb-6">
           <Image
@@ -147,27 +150,27 @@ export default function EmailVerificationPage() {
             alt="Head Huntd Logo"
             width={60}
             height={60}
-            className="object-contain"
+            className="object-contain dark:invert"
             priority
           />
         </div>
 
         {/* White Form Card */}
         <div className="flex-1 mx-4">
-          <div className="bg-white rounded-3xl px-8 py-10 h-full shadow-sm">
+          <div className={`${getCardClassName()} rounded-3xl px-8 py-10 h-full shadow-sm`}>
             {/* Welcome Text */}
             <div className="text-center mb-8">
-              <h1 className="text-[22px] font-bold text-black leading-tight mb-4">
+              <h1 className={`text-[22px] font-bold ${getTextClassName()} leading-tight mb-4`}>
                 Enter your verification code
               </h1>
               <div className="space-y-2">
-                <p className="text-[13px] text-[#464646]">
+                <p className={`text-[13px] ${getSubTextClassName()}`}>
                   We sent a 5 digit verification code to:
                 </p>
-                <p className="text-[13px] font-medium text-black">
+                <p className={`text-[13px] font-medium ${getTextClassName()}`}>
                   {email}
                 </p>
-                <p className="text-[13px] text-[#464646]">
+                <p className={`text-[13px] ${getSubTextClassName()}`}>
                   Enter the code below to reset your password
                 </p>
               </div>
@@ -193,11 +196,11 @@ export default function EmailVerificationPage() {
                     value={digit}
                     onChange={(e) => handleCodeChange(index, e.target.value.replace(/[^0-9]/g, ''))}
                     onKeyDown={(e) => handleKeyDown(index, e)}
-                    className="w-12 h-12 text-center text-lg font-medium border border-gray-300 rounded-lg bg-white focus:border-[#00EA72] focus:ring-0 focus:outline-none"
-                    style={{
-                      backgroundColor: digit ? '#E8F5E8' : 'white',
-                      borderColor: digit ? '#00EA72' : '#D1D5DB'
-                    }}
+                    className={`w-12 h-12 text-center text-lg font-medium border rounded-lg focus:ring-0 focus:outline-none ${
+                      digit 
+                        ? 'border-[#00EA72] bg-green-50 dark:bg-green-900/20' 
+                        : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800'
+                    } ${getTextClassName()}`}
                   />
                 ))}
               </div>
