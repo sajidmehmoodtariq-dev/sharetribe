@@ -22,7 +22,7 @@ export default function LoginRoleSelectionPage() {
             alt="Head Huntd Logo"
             width={60}
             height={60}
-            className="object-contain"
+            className="object-contain dark:invert"
             priority
           />
         </div>
@@ -64,6 +64,11 @@ export default function LoginRoleSelectionPage() {
                     Head Hunter
                   </Button>
                 </Link>
+              </div>
+              <div className="text-center mt-6">
+                <span className={`text-[13px] ${getSubTextClassName()}`}>Don't have an account?{' '}
+                  <Link href="/signup" className="underline text-[#00EA72] hover:text-[#00D66C]">Create new account</Link>
+                </span>
               </div>
             </div>
           </div>

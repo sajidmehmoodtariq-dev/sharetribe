@@ -17,8 +17,13 @@ export default function Home() {
         <div className="w-full max-w-[390px] mx-auto h-screen flex flex-col">
           {/* Logo at top */}
           <div className="flex justify-center pt-6 pb-6">
+            {/* Show different logo based on theme using useTheme */}
             <Image
-              src="/logo.png"
+              src={
+                (typeof window === 'undefined')
+                  ? '/logo-dark.png' // fallback for SSR
+                  : (getCardClassName() === 'bg-gray-900' ? '/logo-light.png' : '/logo-dark.png')
+              }
               alt="Head Huntd Logo"
               width={60}
               height={60}
@@ -50,7 +55,7 @@ export default function Home() {
 
                 {/* Create account button */}
                 <Link href="/signup" className="block mb-4">
-                  <Button className="w-full bg-[#00D66C] hover:bg-[#00C061] text-black font-semibold h-[50px] text-[15px] rounded-full">
+                  <Button className="w-full bg-[#00D66C] hover:bg-[#00C061] font-semibold h-[50px] text-[15px] rounded-full dark:text-black text-black">
                     Create account
                   </Button>
                 </Link>

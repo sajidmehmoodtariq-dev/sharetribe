@@ -299,7 +299,7 @@ export default function PersonalDetailsPage() {
                   value={formData.fullName}
                   onChange={handleInputChange}
                   placeholder=""
-                  className="h-12 rounded-xl border-gray-300 text-[15px]"
+                  className={getInputClassName() + " h-12 rounded-xl text-[15px]"}
                 />
               </div>
 
@@ -330,7 +330,7 @@ export default function PersonalDetailsPage() {
                   value={formData.email}
                   onChange={handleInputChange}
                   placeholder="salmonella@gmail.com"
-                  className="h-12 rounded-xl border-gray-300 text-[15px]"
+                  className={getInputClassName() + " h-12 rounded-xl text-[15px]"}
                 />
               </div>
 
@@ -361,7 +361,7 @@ export default function PersonalDetailsPage() {
                   value={formData.mobileNumber}
                   onChange={handleInputChange}
                   placeholder="Enter your mobile number"
-                  className="h-12 rounded-xl border-gray-300 text-[15px]"
+                  className={getInputClassName() + " h-12 rounded-xl text-[15px]"}
                 />
               </div>
 
@@ -379,7 +379,7 @@ export default function PersonalDetailsPage() {
                   type="date"
                   value={formData.dateOfBirth}
                   onChange={handleInputChange}
-                  className="h-12 rounded-xl border-gray-300 text-[15px]"
+                  className={getInputClassName() + " h-12 rounded-xl text-[15px]"}
                 />
               </div>
 
@@ -397,7 +397,7 @@ export default function PersonalDetailsPage() {
                   value={formData.address}
                   onChange={handleInputChange}
                   placeholder="9 Halifax Street, Adelaide, SA, 5000"
-                  className="h-12 rounded-xl border-gray-300 text-[15px]"
+                  className={getInputClassName() + " h-12 rounded-xl text-[15px]"}
                 />
               </div>
             </div>

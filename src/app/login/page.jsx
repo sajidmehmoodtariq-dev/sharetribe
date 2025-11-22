@@ -148,7 +148,7 @@ export default function LoginPage() {
             alt="Head Huntd Logo"
             width={60}
             height={60}
-            className="object-contain dark:invert"
+            className="object-contain dark:invert" style={{ filter: 'invert(1) brightness(2)' }}
             priority
           />
         </div>

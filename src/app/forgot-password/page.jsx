@@ -22,6 +22,20 @@ export default function ForgotPasswordPage() {
     setLoading(true);
 
     try {
+      // First, check if user exists
+      const checkRes = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/check-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const checkData = await checkRes.json();
+      if (!checkRes.ok || !checkData.exists) {
+        setError('User does not exist.');
+        setLoading(false);
+        return;
+      }
+
+      // If user exists, send verification code
       const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/forgot-password`, {
         method: 'POST',
         headers: {

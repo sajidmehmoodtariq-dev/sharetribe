@@ -70,7 +70,7 @@ export default function PWAInstallPrompt() {
             variant="outline"
             size="sm"
             onClick={handleDismiss}
-            className="border-zinc-700 text-white hover:bg-zinc-800"
+            className="border-zinc-700 text-black dark:text-black bg-white hover:bg-zinc-200 dark:hover:bg-zinc-200"
           >
             Not now
           </Button>
