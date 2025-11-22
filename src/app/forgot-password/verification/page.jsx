@@ -16,12 +16,21 @@ export default function EmailVerificationPage() {
   const [code, setCode] = useState(['', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [cooldown, setCooldown] = useState(0);
 
   useEffect(() => {
     if (!email) {
       router.push('/forgot-password');
     }
   }, [email, router]);
+
+  // Cooldown timer
+  useEffect(() => {
+    if (cooldown > 0) {
+      const timer = setTimeout(() => setCooldown(cooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [cooldown]);
 
   const handleCodeChange = (index, value) => {
     if (value.length > 1) return; // Only allow single digit
@@ -98,6 +107,11 @@ export default function EmailVerificationPage() {
   };
 
   const handleResendCode = async () => {
+    if (cooldown > 0) {
+      setError(`Please wait ${cooldown} seconds before requesting a new code`);
+      return;
+    }
+
     setError('');
     setLoading(true);
     
@@ -123,6 +137,9 @@ export default function EmailVerificationPage() {
       
       // Clear current code
       setCode(['', '', '', '', '']);
+      
+      // Start 30 second cooldown
+      setCooldown(30);
       
       // Show success message (you can add a success state if needed)
       alert('A new verification code has been sent to your email.');
@@ -221,9 +238,14 @@ export default function EmailVerificationPage() {
                   <button
                     type="button"
                     onClick={handleResendCode}
-                    className="text-[13px] text-[#00EA72] font-medium hover:underline"
+                    disabled={cooldown > 0}
+                    className={`text-[13px] font-medium ${
+                      cooldown > 0 
+                        ? 'text-gray-400 cursor-not-allowed' 
+                        : 'text-[#00EA72] hover:underline'
+                    }`}
                   >
-                    Resend code
+                    {cooldown > 0 ? `Resend code (${cooldown}s)` : 'Resend code'}
                   </button>
                 </div>
               </div>
