@@ -1,18 +1,20 @@
 'use client';
 
 import Image from 'next/image';
+import { useTheme } from '@/components/ThemeProvider';
 
 export default function OfflinePage() {
+  const { theme } = useTheme();
   return (
     <div className="min-h-screen bg-black flex items-center justify-center p-4">
       <div className="text-center">
         <div className="inline-flex items-center justify-center mb-8">
           <Image
-            src="/logo.png"
+            src={theme === 'dark' ? '/logo-light.png' : '/logo-dark.png'}
             alt="Head Huntd Logo"
             width={96}
             height={96}
-            className="object-contain invert"
+            className="object-contain"
             priority
           />
         </div>

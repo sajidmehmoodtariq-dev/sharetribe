@@ -13,7 +13,7 @@ export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const role = searchParams.get('role');
-  const { getBackgroundStyle, getCardClassName, getTextClassName, getSubTextClassName, getInputClassName } = useTheme();
+  const { theme, getBackgroundStyle, getCardClassName, getTextClassName, getSubTextClassName, getInputClassName } = useTheme();
   
   const [formData, setFormData] = useState({
     email: '',
@@ -144,11 +144,11 @@ export default function LoginPage() {
         {/* Logo at top */}
         <div className="flex justify-center pt-8 pb-6">
           <Image
-            src="/logo.png"
+            src={theme === 'dark' ? '/logo-light.png' : '/logo-dark.png'}
             alt="Head Huntd Logo"
             width={60}
             height={60}
-            className="object-contain dark:invert" style={{ filter: 'invert(1) brightness(2)' }}
+            className="object-contain"
             priority
           />
         </div>

@@ -31,11 +31,11 @@ export default function TermsAndConditionsPage() {
               Back
             </button>
             <Image
-              src="/logo.png"
+              src={theme === 'dark' ? '/logo-light.png' : '/logo-dark.png'}
               alt="Head Huntd Logo"
               width={50}
               height={50}
-              className="object-contain dark:invert"
+              className="object-contain"
               priority
             />
           </div>

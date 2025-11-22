@@ -4,8 +4,10 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
+import { useTheme } from '@/components/ThemeProvider';
 
 export default function PasswordUpdatedPage() {
+  const { theme, getBackgroundStyle, getCardClassName, getTextClassName } = useTheme();
   const router = useRouter();
 
   // Auto redirect after 3 seconds (optional)
@@ -36,7 +38,7 @@ export default function PasswordUpdatedPage() {
         {/* Logo at top */}
         <div className="flex justify-center pt-8 pb-6">
           <Image
-            src="/logo.png"
+            src={theme === 'dark' ? '/logo-light.png' : '/logo-dark.png'}
             alt="Head Huntd Logo"
             width={60}
             height={60}

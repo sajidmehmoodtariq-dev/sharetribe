@@ -6,8 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import Image from 'next/image';
+import { useTheme } from '@/components/ThemeProvider';
 
 export default function ResetPasswordPage() {
+  const { theme, getBackgroundStyle, getCardClassName, getTextClassName, getSubTextClassName, getInputClassName } = useTheme();
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get('email');
@@ -97,11 +99,11 @@ export default function ResetPasswordPage() {
         {/* Logo at top */}
         <div className="flex justify-center pt-8 pb-6">
           <Image
-            src="/logo.png"
+            src={theme === 'dark' ? '/logo-light.png' : '/logo-dark.png'}
             alt="Head Huntd Logo"
             width={60}
             height={60}
-            className="object-contain dark:invert"
+            className="object-contain"
             priority
           />
         </div>

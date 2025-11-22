@@ -8,7 +8,7 @@ import Image from 'next/image';
 import { useTheme } from '@/components/ThemeProvider';
 
 export default function LoginRoleSelectionPage() {
-  const { getBackgroundStyle, getCardClassName, getTextClassName, getSubTextClassName } = useTheme();
+  const { theme, getBackgroundStyle, getCardClassName, getTextClassName, getSubTextClassName } = useTheme();
   return (
     <div 
       className="min-h-screen flex items-center justify-center"
@@ -18,11 +18,11 @@ export default function LoginRoleSelectionPage() {
         {/* Logo at top */}
         <div className="flex justify-center pt-6 pb-6">
           <Image
-            src="/logo.png"
+            src={theme === 'dark' ? '/logo-light.png' : '/logo-dark.png'}
             alt="Head Huntd Logo"
             width={60}
             height={60}
-            className="object-contain dark:invert"
+            className="object-contain"
             priority
           />
         </div>

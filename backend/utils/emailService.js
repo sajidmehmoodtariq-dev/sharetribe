@@ -1,18 +1,23 @@
 const sgMail = require('@sendgrid/mail');
+const nodemailer = require('nodemailer');
 
 // Track if SendGrid has been initialized
 let isInitialized = false;
+let sendgridAvailable = false;
 
 // Initialize SendGrid with API key (lazy initialization)
 const initializeSendGrid = () => {
   if (!isInitialized) {
     const apiKey = process.env.SENDGRID_API_KEY;
-    if (!apiKey) {
-      throw new Error('SENDGRID_API_KEY is not set in environment variables');
+    if (apiKey) {
+      sgMail.setApiKey(apiKey);
+      sendgridAvailable = true;
+      console.log('✅ SendGrid initialized with API key');
+    } else {
+      sendgridAvailable = false;
+      console.warn('⚠️ SENDGRID_API_KEY not set; SendGrid sending disabled');
     }
-    sgMail.setApiKey(apiKey);
     isInitialized = true;
-    console.log('✅ SendGrid initialized with API key');
   }
 };
 
@@ -26,10 +31,12 @@ const sendPasswordResetEmail = async (email, code, userName) => {
   try {
     // Initialize SendGrid if not already done
     initializeSendGrid();
-    
+
+    const fromAddress = process.env.SENDGRID_VERIFIED_SENDER || process.env.EMAIL_FROM || 'no-reply@headhuntd.local';
+
     const msg = {
       to: email,
-      from: process.env.SENDGRID_VERIFIED_SENDER || 'lojezilo@fxzig.com',
+      from: fromAddress,
       subject: 'Password Reset Verification Code',
       text: `Hello ${userName},\n\nYou requested to reset your password. Your verification code is: ${code}\n\nThis code will expire in 15 minutes.\n\nIf you didn't request this, please ignore this email.\n\nBest regards,\nHead Huntd Team`,
       html: `
@@ -84,9 +91,40 @@ const sendPasswordResetEmail = async (email, code, userName) => {
       `,
     };
 
-    await sgMail.send(msg);
-    console.log(`Password reset email sent to ${email}`);
-    return { success: true };
+    // If SendGrid available use it
+    if (sendgridAvailable) {
+      await sgMail.send(msg);
+      console.log(`Password reset email sent to ${email} via SendGrid`);
+      return { success: true };
+    }
+
+    // Fallback to SMTP via nodemailer if SMTP env vars provided
+    if (process.env.SMTP_HOST && process.env.SMTP_PORT) {
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: parseInt(process.env.SMTP_PORT, 10) || 587,
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: process.env.SMTP_USER ? {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS
+        } : undefined
+      });
+
+      await transporter.sendMail({
+        from: fromAddress,
+        to: email,
+        subject: msg.subject,
+        text: msg.text,
+        html: msg.html
+      });
+
+      console.log(`Password reset email sent to ${email} via SMTP fallback`);
+      return { success: true };
+    }
+
+    // If no sending mechanism is available, log and return success in dev (so flow continues).
+    console.warn(`No email provider configured (SENDGRID_API_KEY or SMTP_*). Skipping actual send for ${email}`);
+    return { success: true, warning: 'No email provider configured' };
   } catch (error) {
     console.error('Error sending password reset email:', error);
     if (error.response) {

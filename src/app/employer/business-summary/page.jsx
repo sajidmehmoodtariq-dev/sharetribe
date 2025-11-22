@@ -10,7 +10,7 @@ import { useTheme } from '@/components/ThemeProvider';
 
 export default function BusinessSummaryPage() {
   const router = useRouter();
-  const { getBackgroundStyle } = useTheme();
+  const { theme, getBackgroundStyle } = useTheme();
   const [businessSummary, setBusinessSummary] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -76,11 +76,11 @@ export default function BusinessSummaryPage() {
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center mb-4">
             <Image
-              src="/logo.png"
+              src={theme === 'dark' ? '/logo-light.png' : '/logo-dark.png'}
               alt="Head Huntd Logo"
               width={64}
               height={64}
-              className="object-contain dark:invert"
+              className="object-contain"
               priority
             />
           </div>

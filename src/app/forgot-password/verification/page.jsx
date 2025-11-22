@@ -11,7 +11,7 @@ export default function EmailVerificationPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get('email');
-  const { getBackgroundStyle, getCardClassName, getTextClassName, getSubTextClassName } = useTheme();
+  const { theme, getBackgroundStyle, getCardClassName, getTextClassName, getSubTextClassName } = useTheme();
   
   const [code, setCode] = useState(['', '', '', '', '']);
   const [loading, setLoading] = useState(false);
@@ -146,11 +146,11 @@ export default function EmailVerificationPage() {
         {/* Logo at top */}
         <div className="flex justify-center pt-8 pb-6">
           <Image
-            src="/logo.png"
+            src={theme === 'dark' ? '/logo-light.png' : '/logo-dark.png'}
             alt="Head Huntd Logo"
             width={60}
             height={60}
-            className="object-contain dark:invert"
+            className="object-contain"
             priority
           />
         </div>

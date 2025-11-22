@@ -8,7 +8,7 @@ import { useTheme } from '@/components/ThemeProvider';
 import Image from 'next/image';
 
 export default function PersonalSummaryPage() {
-  const { getBackgroundStyle, getCardClassName, getTextClassName, getSubTextClassName } = useTheme();
+  const { theme, getBackgroundStyle, getCardClassName, getTextClassName, getSubTextClassName } = useTheme();
   const router = useRouter();
   const [personalSummary, setPersonalSummary] = useState('');
 
@@ -59,11 +59,11 @@ export default function PersonalSummaryPage() {
           {/* Logo at top */}
           <div className="flex justify-center pt-8 pb-6">
             <Image
-              src="/logo.png"
+              src={theme === 'dark' ? '/logo-light.png' : '/logo-dark.png'}
               alt="Head Huntd Logo"
               width={60}
               height={60}
-              className="object-contain dark:invert"
+              className="object-contain"
               priority
             />
           </div>

@@ -1331,11 +1331,10 @@ export default function HomePage() {
               className="flex items-center"
             >
               <Image
-                src="/logo.png"
+                src={theme === 'dark' ? '/logo-light.png' : '/logo-dark.png'}
                 alt="Head Huntd Logo"
                 width={40}
                 height={40}
-                className={theme === 'dark' ? 'filter invert' : ''}
               />
             </button>
           </div>

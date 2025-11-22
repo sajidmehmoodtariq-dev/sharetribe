@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import Image from 'next/image';
 import { useTheme } from '@/components/ThemeProvider';
 
 export default function SignupPage() {
-  const { getBackgroundStyle, getCardClassName, getTextClassName, getSubTextClassName, getInputClassName } = useTheme();
+  const { theme, getBackgroundStyle, getCardClassName, getTextClassName, getSubTextClassName, getInputClassName } = useTheme();
   const router = useRouter();
   const [formData, setFormData] = useState({
     fullName: '',
@@ -30,8 +30,11 @@ export default function SignupPage() {
     setError('');
     setPasswordError('');
 
-    if (formData.password.length < 8) {
-      setPasswordError('At least 8 characters required');
+    // Password validation: 8-15 chars, must include uppercase, lowercase, number and special char
+    const password = formData.password || '';
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,15}$/;
+    if (!passwordRegex.test(password)) {
+      setPasswordError('Password must be 8-15 characters and include uppercase, lowercase, number and special character');
       return;
     }
 
@@ -60,6 +63,8 @@ export default function SignupPage() {
 
       // Store signup data in sessionStorage to use in next steps
       sessionStorage.setItem('signupData', JSON.stringify(formData));
+      // Also keep a draft so returning from other pages preserves inputs
+      sessionStorage.setItem('signupDraft', JSON.stringify(formData));
       
       // Redirect to role selection
       router.push('/signup/role-selection');
@@ -67,6 +72,29 @@ export default function SignupPage() {
       setError(err.message || 'Something went wrong');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Load draft from sessionStorage so navigating away and back preserves inputs
+  useEffect(() => {
+    try {
+      const draft = sessionStorage.getItem('signupDraft');
+      if (draft) {
+        const parsedDraft = JSON.parse(draft);
+        setFormData(parsedDraft);
+      }
+    } catch (err) {
+      // ignore
+    }
+  }, []);
+
+  const updateForm = (patch) => {
+    const newData = { ...formData, ...patch };
+    setFormData(newData);
+    try {
+      sessionStorage.setItem('signupDraft', JSON.stringify(newData));
+    } catch (err) {
+      // ignore storage errors
     }
   };
 
@@ -79,11 +107,11 @@ export default function SignupPage() {
         {/* Logo at top */}
         <div className="flex justify-center pt-8 pb-6">
           <Image
-            src="/logo.png"
+            src={theme === 'dark' ? '/logo-light.png' : '/logo-dark.png'}
             alt="Head Huntd Logo"
             width={60}
             height={60}
-            className="object-contain dark:invert"
+            className="object-contain"
             priority
           />
         </div>
@@ -123,7 +151,7 @@ export default function SignupPage() {
                   id="fullName"
                   type="text"
                   value={formData.fullName}
-                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                  onChange={(e) => updateForm({ fullName: e.target.value })}
                   required
                   className={`${getInputClassName()} text-[13px]`}
                 />
@@ -138,7 +166,7 @@ export default function SignupPage() {
                   id="email"
                   type="email"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={(e) => updateForm({ email: e.target.value })}
                   required
                   className="w-full h-12 border-2 border-[#00EA72] rounded-full bg-transparent text-[13px] px-4 focus:border-[#00EA72] focus:ring-0"
                   style={{
@@ -158,7 +186,7 @@ export default function SignupPage() {
                   type="tel"
                   placeholder="Enter your mobile number"
                   value={formData.mobileNumber}
-                  onChange={(e) => setFormData({ ...formData, mobileNumber: e.target.value })}
+                  onChange={(e) => updateForm({ mobileNumber: e.target.value })}
                   className={`${getInputClassName()} text-[13px]`}
                 />
               </div>
@@ -175,10 +203,11 @@ export default function SignupPage() {
                     placeholder="Create a password"
                     value={formData.password}
                     onChange={(e) => {
-                      setFormData({ ...formData, password: e.target.value });
+                      updateForm({ password: e.target.value });
                       if (passwordError) setPasswordError('');
                     }}
                     required
+                    maxLength={15}
                     className={`${getInputClassName(passwordError)} text-[13px] pr-10`}
                   />
                   <button
@@ -210,7 +239,7 @@ export default function SignupPage() {
               <div className="flex items-start space-x-3 mt-6">
                 <div
                   className={`w-3.5 h-3.5 border ${getTextClassName().includes('text-white') ? 'border-white' : 'border-black'} rounded-sm mt-0.5 shrink-0 flex items-center justify-center cursor-pointer`}
-                  onClick={() => setFormData({ ...formData, agreeToTerms: !formData.agreeToTerms })}
+                  onClick={() => updateForm({ agreeToTerms: !formData.agreeToTerms })}
                 >
                   {formData.agreeToTerms && (
                     <div className={`w-2 h-2 ${getTextClassName().includes('text-white') ? 'bg-white' : 'bg-black'} rounded-sm`}></div>

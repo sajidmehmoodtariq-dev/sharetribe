@@ -89,6 +89,14 @@ exports.signup = async (req, res) => {
       });
     }
 
+    // Enforce password rules: 8-15 chars, uppercase, lowercase, number, special char
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,15}$/;
+    if (!passwordRegex.test(password)) {
+      return res.status(400).json({
+        error: 'Password must be 8-15 characters and include uppercase, lowercase, number and special character'
+      });
+    }
+
     // Check if user already exists
     const existingUser = await User.findOne({ email: email.toLowerCase() });
     if (existingUser) {
@@ -544,9 +552,11 @@ exports.resetPassword = async (req, res) => {
     }
 
     // Validate password length
-    if (newPassword.length < 6) {
+    // Enforce same password rules for reset
+    const newPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,15}$/;
+    if (!newPasswordRegex.test(newPassword)) {
       return res.status(400).json({
-        error: 'Password must be at least 6 characters long'
+        error: 'Password must be 8-15 characters and include uppercase, lowercase, number and special character'
       });
     }
 

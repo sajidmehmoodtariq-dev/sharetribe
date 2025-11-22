@@ -10,7 +10,7 @@ import Image from 'next/image';
 import { compressImage, validateImage } from '@/lib/imageUtils';
 
 export default function PersonalDetailsPage() {
-  const { getBackgroundStyle, getCardClassName, getTextClassName, getSubTextClassName } = useTheme();
+  const { theme, getBackgroundStyle, getCardClassName, getTextClassName, getSubTextClassName } = useTheme();
   const router = useRouter();
   const [formData, setFormData] = useState({
     fullName: '',
@@ -206,11 +206,11 @@ export default function PersonalDetailsPage() {
         {/* Logo at top */}
         <div className="flex justify-center pt-8 pb-6">
           <Image
-            src="/logo.png"
+            src={theme === 'dark' ? '/logo-light.png' : '/logo-dark.png'}
             alt="Head Huntd Logo"
             width={60}
             height={60}
-            className="object-contain dark:invert"
+            className="object-contain"
             priority
           />
         </div>
