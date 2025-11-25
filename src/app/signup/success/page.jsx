@@ -11,6 +11,8 @@ export default function SignupSuccessPage() {
   const searchParams = useSearchParams();
   const [countdown, setCountdown] = useState(3);
   const [isAuthenticating, setIsAuthenticating] = useState(true);
+  const [retryCount, setRetryCount] = useState(0);
+  const maxRetries = 10; // Max 20 seconds of retrying
 
   useEffect(() => {
     const sessionId = searchParams.get('session_id');
@@ -20,9 +22,53 @@ export default function SignupSuccessPage() {
       return;
     }
 
-    // Just mark as authenticated and proceed to onboarding
-    setIsAuthenticating(false);
-  }, [router, searchParams]);
+    // Verify session and get auth token
+    const verifyAndAuthenticate = async () => {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/stripe/verify-session`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.token) {
+          // Store token
+          localStorage.setItem('token', data.token);
+          setIsAuthenticating(false);
+        } else {
+          console.error('Session verification failed:', data.error);
+          // Wait a bit and retry (webhook might still be processing)
+          if (retryCount < maxRetries) {
+            setRetryCount(prev => prev + 1);
+            setTimeout(() => {
+              verifyAndAuthenticate();
+            }, 2000);
+          } else {
+            // Max retries reached, proceed anyway
+            console.warn('Max retries reached, proceeding without token');
+            setIsAuthenticating(false);
+          }
+        }
+      } catch (error) {
+        console.error('Error verifying session:', error);
+        // Retry after delay
+        if (retryCount < maxRetries) {
+          setRetryCount(prev => prev + 1);
+          setTimeout(() => {
+            verifyAndAuthenticate();
+          }, 2000);
+        } else {
+          // Max retries reached, proceed anyway
+          console.warn('Max retries reached, proceeding without token');
+          setIsAuthenticating(false);
+        }
+      }
+    };
+
+    verifyAndAuthenticate();
+  }, [router, searchParams, retryCount, maxRetries]);
 
   useEffect(() => {
     // Countdown timer
