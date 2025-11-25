@@ -77,6 +77,18 @@ export default function SignupPage() {
 
   // Load draft from sessionStorage so navigating away and back preserves inputs
   useEffect(() => {
+    // Check if user arrived via browser back button
+    const navigationEntry = window.performance.getEntriesByType('navigation')[0];
+    const isBackNavigation = navigationEntry && navigationEntry.type === 'back_forward';
+    
+    if (isBackNavigation) {
+      // Clear the form if user pressed back button
+      sessionStorage.removeItem('signupDraft');
+      sessionStorage.removeItem('signupData');
+      return;
+    }
+    
+    // Otherwise, load draft from sessionStorage
     try {
       const draft = sessionStorage.getItem('signupDraft');
       if (draft) {

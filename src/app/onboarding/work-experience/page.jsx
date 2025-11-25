@@ -230,7 +230,7 @@ export default function WorkExperiencePage() {
                       value={formData.highestEducation}
                       onChange={handleInputChange}
                       placeholder="Diploma/Bachelor's/Master's/Doctorate"
-                      className="h-12 rounded-xl border-gray-300 text-[15px]"
+                      className={`h-12 rounded-xl border-gray-300 dark:border-gray-600 text-[15px] ${getTextClassName()} dark:bg-gray-800 placeholder:text-gray-400`}
                     />
                   </div>
                 )}
@@ -247,7 +247,7 @@ export default function WorkExperiencePage() {
                         name="jobTitle"
                         value={formData.jobTitle}
                         onChange={handleInputChange}
-                        className="h-12 rounded-xl border-gray-300 text-[15px]"
+                        className={`h-12 rounded-xl border-gray-300 dark:border-gray-600 text-[15px] ${getTextClassName()} dark:bg-gray-800 placeholder:text-gray-400`}
                       />
                     </div>
 
@@ -261,7 +261,7 @@ export default function WorkExperiencePage() {
                         name="companyName"
                         value={formData.companyName}
                         onChange={handleInputChange}
-                        className="h-12 rounded-xl border-gray-300 text-[15px]"
+                        className={`h-12 rounded-xl border-gray-300 dark:border-gray-600 text-[15px] ${getTextClassName()} dark:bg-gray-800 placeholder:text-gray-400`}
                       />
                     </div>
 
@@ -281,7 +281,7 @@ export default function WorkExperiencePage() {
                             type="date"
                             value={formData.employmentDurationFrom}
                             onChange={handleInputChange}
-                            className="h-12 rounded-xl border-gray-300 text-[15px]"
+                            className={`h-12 rounded-xl border-gray-300 dark:border-gray-600 text-[15px] ${getTextClassName()} dark:bg-gray-800`}
                           />
                         </div>
                         {workStatus === 'worked-before' && (
@@ -295,7 +295,7 @@ export default function WorkExperiencePage() {
                               type="date"
                               value={formData.employmentDurationTo}
                               onChange={handleInputChange}
-                              className="h-12 rounded-xl border-gray-300 text-[15px]"
+                              className={`h-12 rounded-xl border-gray-300 dark:border-gray-600 text-[15px] ${getTextClassName()} dark:bg-gray-800`}
                             />
                           </div>
                         )}
@@ -316,7 +316,7 @@ export default function WorkExperiencePage() {
                         value={formData.workExperienceSummary}
                         onChange={handleInputChange}
                         placeholder="I am a concrete builder with 3 years of experience, skilled in formwork and foundations and certified in MR Class..."
-                        className="min-h-[100px] rounded-xl border-gray-300 text-[15px] resize-none"
+                        className={`min-h-[100px] rounded-xl border-gray-300 dark:border-gray-600 text-[15px] resize-none ${getTextClassName()} dark:bg-gray-800 placeholder:text-gray-400`}
                       />
                     </div>
                   </>
@@ -342,8 +342,8 @@ export default function WorkExperiencePage() {
                         onClick={() => handleEmploymentTypeChange(type.key)}
                         className={`px-4 py-2 rounded-full text-[13px] font-medium transition-colors ${
                           employmentTypes[type.key]
-                            ? 'bg-[#00EA72] text-white'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                            ? 'bg-[#00EA72] text-black'
+                            : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
                         }`}
                       >
                         {type.label}

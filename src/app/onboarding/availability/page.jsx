@@ -180,7 +180,7 @@ export default function AvailabilityPage() {
                     type="date"
                     value={dateRange.from}
                     onChange={handleDateRangeChange}
-                    className="flex-1 h-12 rounded-xl border-gray-300 text-[15px]"
+                    className={`flex-1 h-12 rounded-xl border-gray-300 dark:border-gray-600 text-[15px] ${getTextClassName()} dark:bg-gray-800`}
                   />
                   <span className={`flex items-center text-[15px] ${getTextClassName()}`}>-</span>
                   <Input
@@ -188,7 +188,7 @@ export default function AvailabilityPage() {
                     type="date"
                     value={dateRange.to}
                     onChange={handleDateRangeChange}
-                    className="flex-1 h-12 rounded-xl border-gray-300 text-[15px]"
+                    className={`flex-1 h-12 rounded-xl border-gray-300 dark:border-gray-600 text-[15px] ${getTextClassName()} dark:bg-gray-800`}
                   />
                 </div>
               </div>

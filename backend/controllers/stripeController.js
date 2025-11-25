@@ -289,15 +289,28 @@ exports.verifySession = async (req, res) => {
   try {
     const { sessionId } = req.body;
 
+    console.log('=== VERIFY SESSION REQUEST ===');
+    console.log('Session ID:', sessionId);
+
     if (!sessionId) {
       return res.status(400).json({ error: 'Session ID is required' });
     }
 
     // Retrieve session from Stripe
     const session = await stripe.checkout.sessions.retrieve(sessionId);
+    console.log('Stripe session retrieved:', {
+      id: session.id,
+      customer: session.customer,
+      payment_status: session.payment_status,
+      metadata: session.metadata
+    });
 
     if (!session) {
       return res.status(404).json({ error: 'Session not found' });
+    }
+
+    if (session.payment_status !== 'paid') {
+      return res.status(400).json({ error: 'Payment not completed' });
     }
 
     // Find user by customer ID or email
@@ -308,33 +321,84 @@ exports.verifySession = async (req, res) => {
       ]
     });
 
+    console.log('User search result:', user ? `Found: ${user.email}` : 'Not found');
+    console.log('Search criteria:', {
+      subscriptionCustomerId: session.customer,
+      email: session.metadata?.email || session.customer_details?.email
+    });
+
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      // User might not be created yet by webhook - wait a moment and try again
+      console.log('User not found, waiting 2 seconds for webhook...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const userRetry = await User.findOne({
+        $or: [
+          { subscriptionCustomerId: session.customer },
+          { email: session.metadata?.email || session.customer_details?.email }
+        ]
+      });
+      
+      if (!userRetry) {
+        console.error('User still not found after retry');
+        console.log('Webhook may not have fired - creating user manually...');
+        
+        // Manually trigger user creation (webhook fallback)
+        try {
+          await handleCheckoutCompleted(session);
+          console.log('User created via manual fallback');
+          
+          // Try one more time to find the user
+          const userFinal = await User.findOne({
+            $or: [
+              { subscriptionCustomerId: session.customer },
+              { email: session.metadata?.email || session.customer_details?.email }
+            ]
+          });
+          
+          if (userFinal) {
+            return generateTokenResponse(res, userFinal);
+          }
+        } catch (createError) {
+          console.error('Failed to create user manually:', createError);
+        }
+        
+        return res.status(404).json({ error: 'User not found. Please contact support.' });
+      }
+      
+      console.log('User found on retry:', userRetry.email);
+      return generateTokenResponse(res, userRetry);
     }
 
-    // Generate JWT token
-    const jwt = require('jsonwebtoken');
-    const token = jwt.sign(
-      { id: user._id },
-      process.env.JWT_SECRET || 'your-secret-key-change-in-production',
-      { expiresIn: '30d' }
-    );
-
-    res.json({
-      success: true,
-      token,
-      user: {
-        id: user._id,
-        email: user.email,
-        fullName: user.fullName,
-        role: user.role
-      }
-    });
+    return generateTokenResponse(res, user);
   } catch (error) {
     console.error('Verify session error:', error);
     res.status(500).json({ error: 'Failed to verify session' });
   }
 };
+
+function generateTokenResponse(res, user) {
+  // Generate JWT token
+  const jwt = require('jsonwebtoken');
+  const token = jwt.sign(
+    { id: user._id },
+    process.env.JWT_SECRET || 'your-secret-key-change-in-production',
+    { expiresIn: '30d' }
+  );
+
+  console.log('✅ Token generated for user:', user.email);
+
+  res.json({
+    success: true,
+    token,
+    user: {
+      id: user._id,
+      email: user.email,
+      fullName: user.fullName,
+      role: user.role
+    }
+  });
+}
 
 // Helper functions for webhook events
 async function handleCheckoutCompleted(session) {

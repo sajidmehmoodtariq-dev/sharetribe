@@ -115,7 +115,7 @@ export default function PersonalSummaryPage() {
                   value={personalSummary}
                   onChange={(e) => setPersonalSummary(e.target.value)}
                   placeholder="I am a concrete builder with 3 years of experience, skilled in formwork and foundations and certified in MR Class..."
-                  className="min-h-[120px] rounded-xl border-gray-300 text-[15px] resize-none"
+                  className={`min-h-[120px] rounded-xl border-gray-300 dark:border-gray-600 text-[15px] resize-none ${getTextClassName()} dark:bg-gray-800 placeholder:text-gray-400`}
                 />
               </div>
 

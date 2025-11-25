@@ -11,6 +11,7 @@ export default function SignupSuccessPage() {
   const searchParams = useSearchParams();
   const [countdown, setCountdown] = useState(3);
   const [isAuthenticating, setIsAuthenticating] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const sessionId = searchParams.get('session_id');
@@ -20,8 +21,66 @@ export default function SignupSuccessPage() {
       return;
     }
 
-    // Just mark as authenticated and proceed to onboarding
-    setIsAuthenticating(false);
+    // Verify session and get authentication token
+    const verifyAndAuthenticate = async () => {
+      try {
+        console.log('Verifying session:', sessionId);
+        
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/stripe/verify-session`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ sessionId }),
+        });
+
+        const data = await response.json();
+        console.log('Verification response:', data);
+
+        if (!response.ok) {
+          // If user not found, it might be webhook delay - retry after a few seconds
+          if (data.error && data.error.includes('not found')) {
+            console.log('User not found, retrying in 3 seconds...');
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
+            // Retry once
+            const retryResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/stripe/verify-session`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ sessionId }),
+            });
+            
+            const retryData = await retryResponse.json();
+            console.log('Retry response:', retryData);
+            
+            if (!retryResponse.ok) {
+              throw new Error(retryData.error || 'Failed to verify payment after retry');
+            }
+            
+            localStorage.setItem('token', retryData.token);
+            console.log('✅ Payment verified and user authenticated (retry)');
+            setIsAuthenticating(false);
+            return;
+          }
+          
+          throw new Error(data.error || 'Failed to verify payment');
+        }
+
+        // Store the token in localStorage
+        localStorage.setItem('token', data.token);
+        
+        console.log('✅ Payment verified and user authenticated');
+        setIsAuthenticating(false);
+      } catch (err) {
+        console.error('Session verification error:', err);
+        setError(err.message || 'Failed to verify payment. Please contact support.');
+        setIsAuthenticating(false);
+      }
+    };
+
+    verifyAndAuthenticate();
   }, [router, searchParams]);
 
   useEffect(() => {
@@ -49,7 +108,31 @@ export default function SignupSuccessPage() {
       {isAuthenticating ? (
         <div className={`text-center ${getTextClassName()}`}>
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00EA72] mx-auto mb-4"></div>
-          <p>Setting up your account...</p>
+          <p>Verifying your payment...</p>
+        </div>
+      ) : error ? (
+        <div className="w-full max-w-[375px] mx-auto px-4">
+          <div className={`${getCardClassName()} rounded-3xl px-8 py-16 shadow-sm text-center`}>
+            <div className="mb-8 flex justify-center">
+              <div className="w-20 h-20 bg-red-500 rounded-full flex items-center justify-center">
+                <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </div>
+            </div>
+            <h1 className={`text-[26px] font-bold ${getTextClassName()} mb-4`}>
+              Verification Failed
+            </h1>
+            <p className={`text-[15px] ${getSubTextClassName()} mb-8`}>
+              {error}
+            </p>
+            <button
+              onClick={() => router.push('/login')}
+              className="w-full h-12 bg-[#00EA72] hover:bg-[#00D66C] text-black font-medium text-[15px] rounded-full"
+            >
+              Go to Login
+            </button>
+          </div>
         </div>
       ) : (
       <div className="w-full max-w-[375px] mx-auto h-screen flex flex-col">

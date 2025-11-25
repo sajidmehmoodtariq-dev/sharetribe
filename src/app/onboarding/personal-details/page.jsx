@@ -276,7 +276,7 @@ export default function PersonalDetailsPage() {
               <Button
                 onClick={() => document.getElementById('profileImage').click()}
                 variant="outline"
-                className={`text-[13px] px-6 py-2 rounded-full border-gray-300 ${getTextClassName()}`}
+                className="text-[13px] px-6 py-2 rounded-full border-gray-300 text-black dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 dark:border-gray-600"
                 disabled={isUploading}
               >
                 {isUploading ? 'Processing...' : 'Upload Image'}
