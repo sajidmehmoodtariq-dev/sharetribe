@@ -77,26 +77,26 @@ export default function SignupPage() {
 
   // Load draft from sessionStorage so navigating away and back preserves inputs
   useEffect(() => {
-    // Check if user arrived via browser back button
-    const navigationEntry = window.performance.getEntriesByType('navigation')[0];
-    const isBackNavigation = navigationEntry && navigationEntry.type === 'back_forward';
+    // Load draft only if coming from Terms page
+    const fromTerms = sessionStorage.getItem('fromTermsPage');
     
-    if (isBackNavigation) {
-      // Clear the form if user pressed back button
+    if (fromTerms === 'true') {
+      // Coming from terms page - restore the form
+      try {
+        const draft = sessionStorage.getItem('signupDraft');
+        if (draft) {
+          const parsedDraft = JSON.parse(draft);
+          setFormData(parsedDraft);
+        }
+      } catch (err) {
+        // ignore
+      }
+      // Clear the flag
+      sessionStorage.removeItem('fromTermsPage');
+    } else {
+      // Not from terms page - clear any old drafts
       sessionStorage.removeItem('signupDraft');
       sessionStorage.removeItem('signupData');
-      return;
-    }
-    
-    // Otherwise, load draft from sessionStorage
-    try {
-      const draft = sessionStorage.getItem('signupDraft');
-      if (draft) {
-        const parsedDraft = JSON.parse(draft);
-        setFormData(parsedDraft);
-      }
-    } catch (err) {
-      // ignore
     }
   }, []);
 
@@ -259,7 +259,16 @@ export default function SignupPage() {
                 </div>
                 <label className={`text-[13px] ${getTextClassName()} cursor-pointer select-none`}>
                   I agree to the{' '}
-                  <Link href="/terms" className="text-[#00EA72] font-medium">
+                  <Link 
+                    href="/terms" 
+                    className="text-[#00EA72] font-medium"
+                    onClick={(e) => {
+                      // Save current form state
+                      sessionStorage.setItem('signupDraft', JSON.stringify(formData));
+                      // Mark that we're going to terms page
+                      sessionStorage.setItem('fromTermsPage', 'true');
+                    }}
+                  >
                     Terms and Conditions
                   </Link>
                 </label>
