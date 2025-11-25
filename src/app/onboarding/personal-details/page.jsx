@@ -10,7 +10,7 @@ import Image from 'next/image';
 import { compressImage, validateImage } from '@/lib/imageUtils';
 
 export default function PersonalDetailsPage() {
-  const { theme, getBackgroundStyle, getCardClassName, getTextClassName, getSubTextClassName } = useTheme();
+  const { theme, getBackgroundStyle, getCardClassName, getTextClassName, getSubTextClassName, getInputClassName } = useTheme();
   const router = useRouter();
   const [formData, setFormData] = useState({
     fullName: '',
