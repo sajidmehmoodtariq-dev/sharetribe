@@ -119,10 +119,12 @@ export default function HomePage() {
         });
         if (response.ok) {
           const data = await response.json();
+          console.log('📊 Initial user fetch - Subscription Status:', data.user.subscriptionStatus);
           setUser(data.user);
           
           // Show payment banner ONLY if user doesn't have active subscription
           const hasActiveSubscription = data.user.subscriptionStatus === 'active';
+          console.log('💳 Has active subscription:', hasActiveSubscription);
           setShowPaymentBanner(!hasActiveSubscription);
           
           // Set initial tab based on role
@@ -188,10 +190,13 @@ export default function HomePage() {
 
           const data = await response.json();
           console.log('Verification response:', data);
+          console.log('Response status:', response.status, response.ok);
+          console.log('User from verification:', data.user);
 
           if (!response.ok) {
             // If verification fails, retry after delay
-            console.log('Verification failed, retrying in 3 seconds...');
+            console.log('❌ Verification failed, retrying in 3 seconds...');
+            console.log('Error:', data.error);
             await new Promise(resolve => setTimeout(resolve, 3000));
             
             const retryResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/stripe/verify-session`, {
@@ -205,14 +210,32 @@ export default function HomePage() {
             const retryData = await retryResponse.json();
             
             if (!retryResponse.ok) {
-              console.error('Payment verification failed:', retryData.error);
+              console.error('❌ Payment verification failed after retry:', retryData.error);
               alert('Payment verification failed. Please contact support.');
               return;
             }
             
             console.log('✅ Payment verified on retry');
+            
+            // Update token and user from retry data
+            if (retryData.token) {
+              localStorage.setItem('token', retryData.token);
+            }
+            if (retryData.user) {
+              setUser(retryData.user);
+              console.log('User subscription status from retry:', retryData.user.subscriptionStatus);
+            }
           } else {
             console.log('✅ Payment verified successfully');
+            
+            // Update token and user from initial verification
+            if (data.token) {
+              localStorage.setItem('token', data.token);
+            }
+            if (data.user) {
+              setUser(data.user);
+              console.log('User subscription status:', data.user.subscriptionStatus);
+            }
           }
           
           // Remove payment banner immediately
@@ -230,12 +253,15 @@ export default function HomePage() {
           
           if (userResponse.ok) {
             const userData = await userResponse.json();
-            setUser(userData.user);
             console.log('✅ User data refreshed, subscription status:', userData.user.subscriptionStatus);
-            // Force reload jobs to show real data
-            setTimeout(() => {
-              window.location.reload();
-            }, 1000);
+            
+            // Update state immediately
+            setUser(userData.user);
+            setShowPaymentBanner(userData.user.subscriptionStatus !== 'active');
+            
+            // Force reload to refetch jobs with new subscription status
+            console.log('🔄 Reloading page to show unlocked features...');
+            window.location.reload();
           }
         } catch (error) {
           console.error('Error verifying payment:', error);

@@ -310,6 +310,8 @@ exports.getMe = async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    console.log('📊 /api/auth/me - User:', user.email, 'Subscription Status:', user.subscriptionStatus);
+
     res.json({
       success: true,
       user

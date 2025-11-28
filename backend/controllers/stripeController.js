@@ -167,12 +167,18 @@ exports.handleWebhook = async (req, res) => {
   const sig = req.headers['stripe-signature'];
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
+  console.log('=== WEBHOOK RECEIVED ===');
+  console.log('Webhook Secret configured:', !!webhookSecret);
+  console.log('Signature present:', !!sig);
+
   let event;
 
   try {
     event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+    console.log('✅ Webhook signature verified');
+    console.log('Event type:', event.type);
   } catch (err) {
-    console.error('Webhook signature verification failed:', err.message);
+    console.error('❌ Webhook signature verification failed:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
@@ -180,7 +186,9 @@ exports.handleWebhook = async (req, res) => {
   try {
     switch (event.type) {
       case 'checkout.session.completed':
+        console.log('Processing checkout.session.completed event');
         await handleCheckoutCompleted(event.data.object);
+        console.log('✅ Checkout completed handler finished');
         break;
       
       case 'customer.subscription.created':
@@ -314,61 +322,69 @@ exports.verifySession = async (req, res) => {
     }
 
     // Find user by customer ID or email
-    const user = await User.findOne({
+    let user = await User.findOne({
       $or: [
         { subscriptionCustomerId: session.customer },
         { email: session.metadata?.email || session.customer_details?.email }
       ]
     });
 
-    console.log('User search result:', user ? `Found: ${user.email}` : 'Not found');
+    console.log('User search result:', user ? `Found: ${user.email}, Status: ${user.subscriptionStatus}` : 'Not found');
     console.log('Search criteria:', {
       subscriptionCustomerId: session.customer,
       email: session.metadata?.email || session.customer_details?.email
     });
 
-    if (!user) {
-      // User might not be created yet by webhook - wait a moment and try again
-      console.log('User not found, waiting 2 seconds for webhook...');
+    // If user doesn't exist OR user exists but subscription not active yet
+    if (!user || user.subscriptionStatus !== 'active') {
+      console.log(user ? 'User found but subscription not active yet' : 'User not found');
+      console.log('Waiting 2 seconds for webhook to process...');
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      const userRetry = await User.findOne({
+      // Retry finding user
+      user = await User.findOne({
         $or: [
           { subscriptionCustomerId: session.customer },
           { email: session.metadata?.email || session.customer_details?.email }
         ]
       });
       
-      if (!userRetry) {
-        console.error('User still not found after retry');
-        console.log('Webhook may not have fired - creating user manually...');
+      console.log('After retry:', user ? `Found: ${user.email}, Status: ${user.subscriptionStatus}` : 'Still not found');
+      
+      // If still not found OR still not active, manually process the webhook
+      if (!user || user.subscriptionStatus !== 'active') {
+        console.log('⚠️ Webhook has not processed yet - manually triggering handleCheckoutCompleted');
         
-        // Manually trigger user creation (webhook fallback)
         try {
           await handleCheckoutCompleted(session);
-          console.log('User created via manual fallback');
+          console.log('✅ Manual webhook processing completed');
           
-          // Try one more time to find the user
-          const userFinal = await User.findOne({
+          // Final user lookup
+          user = await User.findOne({
             $or: [
               { subscriptionCustomerId: session.customer },
               { email: session.metadata?.email || session.customer_details?.email }
             ]
           });
           
-          if (userFinal) {
-            return generateTokenResponse(res, userFinal);
+          if (!user) {
+            console.error('❌ User still not found after manual processing');
+            return res.status(404).json({ error: 'User not found. Please contact support.' });
           }
+          
+          console.log('✅ User found after manual processing:', user.email, 'Status:', user.subscriptionStatus);
         } catch (createError) {
-          console.error('Failed to create user manually:', createError);
+          console.error('❌ Failed to manually process checkout:', createError);
+          return res.status(500).json({ error: 'Failed to process payment. Please contact support.' });
         }
-        
-        return res.status(404).json({ error: 'User not found. Please contact support.' });
       }
-      
-      console.log('User found on retry:', userRetry.email);
-      return generateTokenResponse(res, userRetry);
     }
+
+    console.log('Final user state before token generation:', {
+      email: user.email,
+      subscriptionStatus: user.subscriptionStatus,
+      subscriptionCustomerId: user.subscriptionCustomerId
+    });
 
     return generateTokenResponse(res, user);
   } catch (error) {
@@ -386,7 +402,7 @@ function generateTokenResponse(res, user) {
     { expiresIn: '30d' }
   );
 
-  console.log('✅ Token generated for user:', user.email);
+  console.log('✅ Token generated for user:', user.email, 'Subscription:', user.subscriptionStatus);
 
   res.json({
     success: true,
@@ -395,7 +411,8 @@ function generateTokenResponse(res, user) {
       id: user._id,
       email: user.email,
       fullName: user.fullName,
-      role: user.role
+      role: user.role,
+      subscriptionStatus: user.subscriptionStatus
     }
   });
 }
@@ -441,12 +458,14 @@ async function handleCheckoutCompleted(session) {
       console.log('User created with ID:', user._id);
     } else if (user) {
       console.log('Existing user upgrading subscription:', user._id);
+      console.log('Current subscription status:', user.subscriptionStatus);
       // Update existing user's subscription status
       user.subscriptionCustomerId = metadata.stripeCustomerId || session.customer;
       user.subscriptionStatus = 'active';
       await user.save();
+      console.log('✅ User subscription status updated to:', user.subscriptionStatus);
     } else {
-      console.error('User not found for existing user payment:', metadata.email);
+      console.error('❌ User not found for existing user payment:', metadata.email);
       return;
     }
 
