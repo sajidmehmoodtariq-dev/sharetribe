@@ -169,35 +169,88 @@ export default function HomePage() {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const paymentStatus = urlParams.get('payment');
+    const sessionId = urlParams.get('session_id');
     const onboardingStatus = urlParams.get('onboarding');
     
-    if (paymentStatus === 'success') {
-      // Remove payment banner immediately
-      localStorage.removeItem('showPaymentBanner');
-      setShowPaymentBanner(false);
-      
-      // Clean URL
-      window.history.replaceState({}, '', '/home');
-      
-      // Refresh user data to get updated subscription status
-      const fetchUpdatedUser = async () => {
+    if (paymentStatus === 'success' && sessionId) {
+      // Verify Stripe session and update database
+      const verifyPayment = async () => {
         try {
+          console.log('Verifying Stripe session:', sessionId);
+          
+          const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/stripe/verify-session`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ sessionId }),
+          });
+
+          const data = await response.json();
+          console.log('Verification response:', data);
+
+          if (!response.ok) {
+            // If verification fails, retry after delay
+            console.log('Verification failed, retrying in 3 seconds...');
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
+            const retryResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/stripe/verify-session`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ sessionId }),
+            });
+            
+            const retryData = await retryResponse.json();
+            
+            if (!retryResponse.ok) {
+              console.error('Payment verification failed:', retryData.error);
+              alert('Payment verification failed. Please contact support.');
+              return;
+            }
+            
+            console.log('✅ Payment verified on retry');
+          } else {
+            console.log('✅ Payment verified successfully');
+          }
+          
+          // Remove payment banner immediately
+          localStorage.removeItem('showPaymentBanner');
+          setShowPaymentBanner(false);
+          
+          // Clean URL
+          window.history.replaceState({}, '', '/home');
+          
+          // Refresh user data to get updated subscription status
           const token = localStorage.getItem('token');
-          const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/me`, {
+          const userResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/me`, {
             headers: { Authorization: `Bearer ${token}` }
           });
-          if (response.ok) {
-            const data = await response.json();
-            setUser(data.user);
+          
+          if (userResponse.ok) {
+            const userData = await userResponse.json();
+            setUser(userData.user);
+            console.log('✅ User data refreshed, subscription status:', userData.user.subscriptionStatus);
             // Force reload jobs to show real data
-            window.location.reload();
+            setTimeout(() => {
+              window.location.reload();
+            }, 1000);
           }
         } catch (error) {
-          console.error('Error fetching updated user:', error);
-          window.location.reload();
+          console.error('Error verifying payment:', error);
+          alert('Failed to verify payment. Please refresh the page.');
         }
       };
-      fetchUpdatedUser();
+      
+      verifyPayment();
+    } else if (paymentStatus === 'success') {
+      // Payment success without session_id (shouldn't happen normally)
+      console.warn('Payment success without session_id');
+      localStorage.removeItem('showPaymentBanner');
+      setShowPaymentBanner(false);
+      window.history.replaceState({}, '', '/home');
+      window.location.reload();
     } else if (onboardingStatus === 'complete') {
       // Onboarding just completed, remove banner and refresh
       localStorage.removeItem('showPaymentBanner');
@@ -589,7 +642,13 @@ export default function HomePage() {
   // Handle sign out
   const handleSignOut = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      const token = localStorage.getItem('token');
+      await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/logout`, { 
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       localStorage.removeItem('token');
       router.push('/login/role-selection');
     } catch (error) {
@@ -649,10 +708,12 @@ export default function HomePage() {
     setSaveMessage('');
     
     try {
-      const response = await fetch('/api/user/profile', {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(editForm),
       });
@@ -1052,10 +1113,10 @@ export default function HomePage() {
       const hasCompletedOnboarding = user?.onboarding?.personalDetailsCompleted && 
                                       user?.onboarding?.personalSummaryCompleted;
       
-      // Set success URL based on onboarding status
+      // Set success URL based on onboarding status - include session_id placeholder
       const successUrl = hasCompletedOnboarding 
-        ? `${window.location.origin}/home?payment=success`
-        : `${window.location.origin}/onboarding/personal-details?payment=success`;
+        ? `${window.location.origin}/home?payment=success&session_id={CHECKOUT_SESSION_ID}`
+        : `${window.location.origin}/onboarding/personal-details?payment=success&session_id={CHECKOUT_SESSION_ID}`;
       
       // Create checkout session
       const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/stripe/create-checkout-session`, {

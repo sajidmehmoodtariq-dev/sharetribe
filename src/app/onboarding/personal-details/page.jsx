@@ -30,15 +30,65 @@ export default function PersonalDetailsPage() {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const paymentStatus = urlParams.get('payment');
+    const sessionId = urlParams.get('session_id');
     
-    if (paymentStatus === 'success') {
+    if (paymentStatus === 'success' && sessionId) {
+      const verifyPayment = async () => {
+        try {
+          // Verify payment with backend
+          const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/stripe/verify-session`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ sessionId }),
+          });
+
+          const data = await response.json();
+
+          if (response.ok && data.success) {
+            console.log('Payment verified successfully');
+            
+            // Update token if new one provided
+            if (data.token) {
+              localStorage.setItem('token', data.token);
+            }
+            
+            // Remove payment banner flag
+            localStorage.removeItem('showPaymentBanner');
+            
+            // Show success message
+            setShowPaymentSuccess(true);
+            
+            // Clean URL
+            window.history.replaceState({}, '', '/onboarding/personal-details');
+            
+            // Auto-hide success message after 5 seconds
+            setTimeout(() => setShowPaymentSuccess(false), 5000);
+          } else {
+            console.error('Payment verification failed:', data.error);
+            
+            // Retry after delay (webhook might still be processing)
+            setTimeout(() => {
+              window.location.reload();
+            }, 3000);
+          }
+        } catch (error) {
+          console.error('Error verifying payment:', error);
+          
+          // Retry on network error
+          setTimeout(() => {
+            window.location.reload();
+          }, 3000);
+        }
+      };
+
+      verifyPayment();
+    } else if (paymentStatus === 'success') {
+      // Handle old success URL format without session_id (fallback)
       setShowPaymentSuccess(true);
-      // Remove payment banner flag
       localStorage.removeItem('showPaymentBanner');
-      // Clean URL
       window.history.replaceState({}, '', '/onboarding/personal-details');
-      
-      // Auto-hide success message after 5 seconds
       setTimeout(() => setShowPaymentSuccess(false), 5000);
     }
   }, []);

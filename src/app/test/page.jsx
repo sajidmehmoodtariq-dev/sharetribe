@@ -31,7 +31,7 @@ export default function TestPage() {
     };
 
     try {
-      const response = await fetch('/api/auth/signup', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(testUser)
@@ -82,7 +82,7 @@ export default function TestPage() {
     };
 
     try {
-      const response = await fetch('/api/auth/signup', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(testEmployer)
@@ -125,7 +125,7 @@ export default function TestPage() {
     };
 
     try {
-      const response = await fetch('/api/auth/signup', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(testEmployee)
@@ -162,7 +162,7 @@ export default function TestPage() {
     }
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/login`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: testUser.email, password: testUser.password })
@@ -187,7 +187,7 @@ export default function TestPage() {
     addResult('🧪 Testing Get Current User...');
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/me`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/me`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -212,7 +212,13 @@ export default function TestPage() {
     addResult('🧪 Testing Logout...');
 
     try {
-      const response = await fetch('/api/auth/logout', { method: 'POST' });
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/logout`, { 
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       const data = await response.json();
 
       if (response.ok) {
