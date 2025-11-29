@@ -17,31 +17,16 @@ const personalSummarySchema = new mongoose.Schema({
 
 // Work Experience Schema - Step 3
 const workExperienceSchema = new mongoose.Schema({
-  workStatus: { 
-    type: String, 
-    enum: ['first-job', 'worked-before', 'currently-working'] 
-  },
-  employmentTypes: [{ type: String }], // ['full-time', 'part-time', 'casual']
   industry: { type: String },
-  role: { type: String },
-  yearsOfExperience: { type: String },
-  highestEducation: { type: String },
-  currentJobTitle: { type: String },
-  currentCompany: { type: String },
-  employmentDurationFrom: { type: String },
-  employmentDurationTo: { type: String },
-  workExperienceSummary: { type: String }
+  skills: [{ type: String }] // Array of selected skills
 }, { _id: false });
 
 // Availability Schema - Step 4
 const availabilitySchema = new mongoose.Schema({
-  dateRange: {
-    from: { type: Date },
-    to: { type: Date }
-  },
+  startDate: { type: Date },
   noticePreference: { 
     type: String, 
-    enum: ['immediately', '1-week', '2-weeks', '1-month', 'flexible'] 
+    enum: ['immediately', '1-week', '2-weeks', 'any-other'] 
   },
   preferredWorkTimes: [{ type: String }] // ['morning', 'afternoon', 'evening']
 }, { _id: false });

@@ -131,53 +131,17 @@ exports.updatePersonalDetails = async (req, res) => {
 // Update work experience
 exports.updateWorkExperience = async (req, res) => {
   try {
-    const { 
-      workStatus, 
-      employmentTypes, 
-      selectedIndustry, 
-      selectedRole, 
-      jobTitle,
-      companyName,
-      employmentDurationFrom,
-      employmentDurationTo,
-      workExperienceSummary,
-      highestEducation,
-      yearsOfExperience,
-      currentJobTitle,
-      currentCompany 
-    } = req.body;
+    const { selectedIndustry, selectedSkills } = req.body;
 
     console.log('Updating work experience for user:', req.user.id);
     console.log('Work experience data received:', req.body);
-
-    // Convert employmentTypes from object to array of strings
-    let employmentTypesArray = [];
-    if (employmentTypes) {
-      if (typeof employmentTypes === 'object' && !Array.isArray(employmentTypes)) {
-        // Convert object like {fullTime: true, partTime: false} to array ['full-time']
-        if (employmentTypes.fullTime) employmentTypesArray.push('full-time');
-        if (employmentTypes.partTime) employmentTypesArray.push('part-time');
-        if (employmentTypes.casual) employmentTypesArray.push('casual');
-      } else if (Array.isArray(employmentTypes)) {
-        employmentTypesArray = employmentTypes;
-      }
-    }
 
     const user = await User.findByIdAndUpdate(
       req.user.id,
       {
         $set: {
-          'workExperience.workStatus': workStatus || '',
-          'workExperience.employmentTypes': employmentTypesArray,
           'workExperience.industry': selectedIndustry || '',
-          'workExperience.role': selectedRole || '',
-          'workExperience.yearsOfExperience': yearsOfExperience || '',
-          'workExperience.highestEducation': highestEducation || '',
-          'workExperience.currentJobTitle': currentJobTitle || jobTitle || '',
-          'workExperience.currentCompany': currentCompany || companyName || '',
-          'workExperience.employmentDurationFrom': employmentDurationFrom || '',
-          'workExperience.employmentDurationTo': employmentDurationTo || '',
-          'workExperience.workExperienceSummary': workExperienceSummary || '',
+          'workExperience.skills': selectedSkills || [],
           'onboarding.workExperienceCompleted': true,
           'onboarding.currentStep': 4,
         },
@@ -205,10 +169,10 @@ exports.updateWorkExperience = async (req, res) => {
 // Update availability
 exports.updateAvailability = async (req, res) => {
   try {
-    const { availability, dateRange, noticePreference } = req.body;
+    const { availability, startDate, noticePreference } = req.body;
 
     console.log('Updating availability for user:', req.user.id);
-    console.log('Availability data:', { availability, dateRange, noticePreference });
+    console.log('Availability data:', { availability, startDate, noticePreference });
 
     // Convert availability times to array
     let preferredWorkTimes = [];
@@ -223,7 +187,7 @@ exports.updateAvailability = async (req, res) => {
       {
         $set: {
           'availability.preferredWorkTimes': preferredWorkTimes,
-          'availability.dateRange': dateRange || {},
+          'availability.startDate': startDate || '',
           'availability.noticePreference': noticePreference,
           'onboarding.availabilityCompleted': true,
           'onboarding.completed': true,

@@ -14,6 +14,7 @@ export default function ChatsPage() {
   const [selectedChat, setSelectedChat] = useState(null);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [connectionError, setConnectionError] = useState(false);
   const [sending, setSending] = useState(false);
   const [showChatList, setShowChatList] = useState(true);
   const [closingChat, setClosingChat] = useState(false);
@@ -33,6 +34,13 @@ export default function ChatsPage() {
     const token = localStorage.getItem('token');
     if (!token) {
       router.push('/login');
+      return;
+    }
+
+    // Verify backend URL is set
+    if (!BACKEND_URL || BACKEND_URL === 'undefined') {
+      console.error('BACKEND_URL is not configured. Please set NEXT_PUBLIC_BACKEND_URL in your environment variables.');
+      setLoading(false);
       return;
     }
 
@@ -107,6 +115,12 @@ export default function ChatsPage() {
     try {
       const token = localStorage.getItem('token');
       
+      if (!token) {
+        console.error('No token found');
+        router.push('/login');
+        return;
+      }
+      
       // Check if we need to filter by jobId (for employers)
       const params = new URLSearchParams(window.location.search);
       const jobId = params.get('jobId');
@@ -132,7 +146,7 @@ export default function ChatsPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setChats(data.chats);
+        setChats(data.chats || []);
         
         // Update selected chat if it exists
         if (selectedChat && data.chats) {
@@ -141,9 +155,22 @@ export default function ChatsPage() {
             setSelectedChat(updatedSelectedChat);
           }
         }
+      } else if (response.status === 401) {
+        // Token expired or invalid
+        console.error('Authentication failed');
+        localStorage.removeItem('token');
+        router.push('/login');
+      } else {
+        console.error('Failed to fetch chats:', response.statusText);
       }
     } catch (error) {
       console.error('Error fetching chats:', error);
+      // Don't show error on silent fetch (polling)
+      if (!silent) {
+        // Set empty chats array instead of showing error
+        setChats([]);
+        setConnectionError(true);
+      }
     } finally {
       if (!silent) {
         setLoading(false);
@@ -437,6 +464,61 @@ export default function ChatsPage() {
     return (
       <div className="min-h-screen flex items-center justify-center" style={getBackgroundStyle()}>
         <div className="text-xl" style={{ color: theme === 'dark' ? '#fff' : '#000' }}>Loading chats...</div>
+      </div>
+    );
+  }
+
+  // Show error if backend is not configured
+  if (!BACKEND_URL || BACKEND_URL === 'undefined') {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6" style={getBackgroundStyle()}>
+        <div className={`max-w-md text-center ${getCardClassName()} p-8 rounded-2xl`}>
+          <h2 className={`text-xl font-bold ${getTextClassName()} mb-4`}>Configuration Error</h2>
+          <p className={`${getSubTextClassName()} mb-4`}>
+            The backend server URL is not configured. Please contact support or check your environment settings.
+          </p>
+          <button
+            onClick={() => router.push('/home')}
+            className="px-6 py-2 bg-[#00EA72] text-black rounded-full font-medium hover:bg-[#00D66C] transition-colors"
+          >
+            Go to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error if backend connection failed
+  if (connectionError && chats.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6" style={getBackgroundStyle()}>
+        <div className={`max-w-md text-center ${getCardClassName()} p-8 rounded-2xl`}>
+          <h2 className={`text-xl font-bold ${getTextClassName()} mb-4`}>Connection Error</h2>
+          <p className={`${getSubTextClassName()} mb-4`}>
+            Unable to connect to the chat server. Please make sure the backend server is running.
+          </p>
+          <p className={`text-sm ${getSubTextClassName()} mb-6`}>
+            Backend URL: {BACKEND_URL}
+          </p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={() => {
+                setConnectionError(false);
+                setLoading(true);
+                fetchChats();
+              }}
+              className="px-6 py-2 bg-[#00EA72] text-black rounded-full font-medium hover:bg-[#00D66C] transition-colors"
+            >
+              Retry
+            </button>
+            <button
+              onClick={() => router.push('/home')}
+              className="px-6 py-2 bg-gray-200 text-gray-800 rounded-full font-medium hover:bg-gray-300 transition-colors"
+            >
+              Go to Home
+            </button>
+          </div>
+        </div>
       </div>
     );
   }

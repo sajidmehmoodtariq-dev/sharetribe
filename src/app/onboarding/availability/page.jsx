@@ -15,11 +15,9 @@ export default function AvailabilityPage() {
     afternoon: false,
     evening: false
   });
-  const [dateRange, setDateRange] = useState({
-    from: '',
-    to: ''
-  });
+  const [startDate, setStartDate] = useState('');
   const [noticePreference, setNoticePreference] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleAvailabilityChange = (timeSlot) => {
     setAvailability(prev => ({
@@ -28,15 +26,8 @@ export default function AvailabilityPage() {
     }));
   };
 
-  const handleDateRangeChange = (e) => {
-    const { name, value } = e.target;
-    setDateRange(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
   const handleFinish = async () => {
+    setIsSaving(true);
     try {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -54,7 +45,7 @@ export default function AvailabilityPage() {
         },
         body: JSON.stringify({
           availability,
-          dateRange,
+          startDate,
           noticePreference
         }),
       });
@@ -76,6 +67,8 @@ export default function AvailabilityPage() {
     } catch (error) {
       console.error('Error:', error);
       alert(error.message || 'Something went wrong. Please try again.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -168,29 +161,18 @@ export default function AvailabilityPage() {
                 </div>
               </div>
 
-              {/* Date Range Selection */}
+              {/* Start Date Selection */}
               <div className="mb-8">
                 <h3 className={`text-[16px] font-semibold ${getTextClassName()} mb-2`}>
-                  Select your available start and end date to work*
+                  Select your available start date to work*
                 </h3>
                 
-                <div className="flex space-x-3 mb-4">
-                  <Input
-                    name="from"
-                    type="date"
-                    value={dateRange.from}
-                    onChange={handleDateRangeChange}
-                    className={`flex-1 h-12 rounded-xl border-gray-300 dark:border-gray-600 text-[15px] ${getTextClassName()} dark:bg-gray-800`}
-                  />
-                  <span className={`flex items-center text-[15px] ${getTextClassName()}`}>-</span>
-                  <Input
-                    name="to"
-                    type="date"
-                    value={dateRange.to}
-                    onChange={handleDateRangeChange}
-                    className={`flex-1 h-12 rounded-xl border-gray-300 dark:border-gray-600 text-[15px] ${getTextClassName()} dark:bg-gray-800`}
-                  />
-                </div>
+                <Input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className={`w-full h-12 rounded-xl border-gray-300 dark:border-gray-600 text-[15px] ${getTextClassName()} dark:bg-gray-800`}
+                />
               </div>
 
               {/* Notice Period */}
@@ -227,9 +209,16 @@ export default function AvailabilityPage() {
               <div className="mt-8">
                 <Button
                   onClick={handleFinish}
-                  className="w-full h-12 bg-[#00EA72] hover:bg-[#00D66C] text-black font-medium text-[15px] rounded-full"
+                  disabled={isSaving}
+                  className="w-full h-12 bg-[#00EA72] hover:bg-[#00D66C] text-black font-medium text-[15px] rounded-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  Save
+                  {isSaving && (
+                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  )}
+                  {isSaving ? 'Saving...' : 'Save'}
                 </Button>
               </div>
             </div>

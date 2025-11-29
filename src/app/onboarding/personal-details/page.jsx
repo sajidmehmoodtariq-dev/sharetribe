@@ -24,7 +24,9 @@ export default function PersonalDetailsPage() {
   const [profileImage, setProfileImage] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
+  const [userRole, setUserRole] = useState(null);
   const today = new Date().toISOString().split('T')[0];
 
   // Handle payment success from URL
@@ -94,23 +96,68 @@ export default function PersonalDetailsPage() {
     }
   }, []);
 
-  // Get signup data from sessionStorage
+  // Get signup data from sessionStorage OR fetch existing user data
   useEffect(() => {
-    const signupDataStr = sessionStorage.getItem('signupData');
-    if (signupDataStr) {
-      try {
-        const signupData = JSON.parse(signupDataStr);
-        setFormData(prev => ({
-          ...prev,
-          fullName: signupData.fullName || '',
-          email: signupData.email || '',
-          mobileNumber: signupData.mobileNumber || '',
-        }));
-      } catch (error) {
-        console.error('Error parsing signup data:', error);
+    const fetchUserData = async () => {
+      const signupDataStr = sessionStorage.getItem('signupData');
+      const token = localStorage.getItem('token');
+      
+      // If coming from signup flow, use session storage
+      if (signupDataStr) {
+        try {
+          const signupData = JSON.parse(signupDataStr);
+          setFormData(prev => ({
+            ...prev,
+            fullName: signupData.fullName || '',
+            email: signupData.email || '',
+            mobileNumber: signupData.mobileNumber || '',
+          }));
+        } catch (error) {
+          console.error('Error parsing signup data:', error);
+        }
+      } 
+      // If user has token but no signup data (came from payment after "decide later")
+      else if (token) {
+        try {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/me`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            const user = data.user;
+            
+            // Set user role
+            setUserRole(user.role);
+            
+            // Pre-fill with existing user data
+            setFormData(prev => ({
+              ...prev,
+              fullName: user.fullName || '',
+              email: user.email || '',
+              mobileNumber: user.mobileNumber || '',
+              dateOfBirth: user.personalDetails?.dateOfBirth 
+                ? new Date(user.personalDetails.dateOfBirth).toISOString().split('T')[0] 
+                : '',
+              address: user.personalDetails?.address || '',
+              showEmailOnProfile: user.personalDetails?.showEmailOnProfile ?? true,
+              showMobileOnProfile: user.personalDetails?.showMobileOnProfile ?? true,
+            }));
+            
+            // Set profile image if exists
+            if (user.personalDetails?.profileImage) {
+              setProfileImage(user.personalDetails.profileImage);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching user data:', error);
+        }
       }
-    }
-    setIsLoading(false);
+      
+      setIsLoading(false);
+    };
+    
+    fetchUserData();
   }, []);
 
   const handleInputChange = (e) => {
@@ -230,6 +277,8 @@ export default function PersonalDetailsPage() {
     } catch (error) {
       console.error('Error:', error);
       alert(error.message || 'Something went wrong. Please try again.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -284,29 +333,55 @@ export default function PersonalDetailsPage() {
         {/* Progress Steps */}
         <div className="px-6 mb-6">
           <div className="flex items-center justify-center mb-4">
-            {[1, 2, 3, 4].map((step, index) => (
-              <div key={step} className="flex items-center">
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium ${
-                  step === 1 
-                    ? 'bg-[#00EA72] text-white' 
-                    : 'bg-gray-200 text-gray-500'
-                }`}>
-                  {step}
-                </div>
-                {index < 3 && (
-                  <div className={`w-8 h-0.5 mx-1 ${
-                    step === 1 ? 'bg-gray-300' : 'bg-gray-200'
-                  }`} />
-                )}
+            {userRole === 'employer' ? (
+              // 2 steps for employers - centered with wider spacing
+              <div className="flex items-center gap-12">
+                {[1, 2].map((step, index) => (
+                  <div key={step} className="flex flex-col items-center">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold shadow-sm ${
+                      step === 1 
+                        ? 'bg-[#00EA72] text-white' 
+                        : 'bg-gray-200 text-gray-500'
+                    }`}>
+                      {step}
+                    </div>
+                    <span className={`mt-2 text-xs font-medium ${
+                      step === 1 ? getTextClassName() : getSubTextClassName()
+                    } text-center whitespace-nowrap`}>
+                      {step === 1 ? 'Personal Details' : 'Personal Summary'}
+                    </span>
+                  </div>
+                ))}
+                <div className="absolute w-24 h-0.5 bg-gray-300" style={{marginTop: '-28px'}} />
               </div>
-            ))}
+            ) : (
+              // 4 steps for job seekers
+              [1, 2, 3, 4].map((step, index) => (
+                <div key={step} className="flex items-center">
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium ${
+                    step === 1 
+                      ? 'bg-[#00EA72] text-white' 
+                      : 'bg-gray-200 text-gray-500'
+                  }`}>
+                    {step}
+                  </div>
+                  {index < 3 && (
+                    <div className={`w-8 h-0.5 mx-1 ${
+                      step === 1 ? 'bg-gray-300' : 'bg-gray-200'
+                    }`} />
+                  )}
+                </div>
+              ))
+            )}
           </div>
-          <div className="flex justify-between text-xs px-2">
-            <span className={`${getTextClassName()} font-medium text-center`}>Personal<br />Details</span>
-            <span className={`${getSubTextClassName()} text-center`}>Personal<br />Summary</span>
-            <span className={`${getSubTextClassName()} text-center`}>Skills</span>
-            <span className={`${getSubTextClassName()} text-center`}>Availability</span>
-          </div>
+          {userRole !== 'employer' && (
+            <div className="flex justify-between text-xs px-2">
+              <span className={`${getTextClassName()} font-medium text-center`}>Personal<br />Details</span>
+              <span className={`${getSubTextClassName()} text-center`}>Personal<br />Summary</span>
+              <span className={`${getSubTextClassName()} text-center`}>Skills</span>
+              <span className={`${getSubTextClassName()} text-center`}>Availability</span>
+            </div>
+          )}
         </div>
 
         {/* Form Card */}

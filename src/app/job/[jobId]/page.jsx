@@ -194,6 +194,18 @@ export default function JobDetails() {
       return;
     }
 
+    // Make CV upload mandatory for new applications
+    if (!isEditMode && !resumeFile) {
+      alert('Please upload your CV/Resume to apply for this job');
+      return;
+    }
+
+    // For edit mode, require CV if not already uploaded
+    if (isEditMode && !resumeFile && !existingApplication?.resumeUrl) {
+      alert('Please upload your CV/Resume');
+      return;
+    }
+
     setApplying(true);
     try {
       const token = localStorage.getItem('token');
@@ -1047,7 +1059,7 @@ export default function JobDetails() {
                   </button>
                   <button
                     onClick={() => setShowApplicantModal(false)}
-                    className="flex-1 border-2 border-gray-300 dark:border-gray-600 hover:border-[#00EA72] font-semibold py-3 rounded-full transition-colors"
+                    className="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-3 rounded-full transition-colors shadow-lg hover:shadow-xl"
                   >
                     Close
                   </button>
@@ -1137,10 +1149,10 @@ export default function JobDetails() {
                 {/* File Upload */}
                 <div>
                   <label className={`block text-sm font-semibold ${getTextClassName()} mb-2`}>
-                    Upload Resume/Proposal (Optional)
+                    Upload Resume/CV <span className="text-red-500">*</span>
                   </label>
                   <p className={`text-xs ${getSubTextClassName()} mb-3`}>
-                    Supported formats: PDF, DOCX (Max size: 5MB)
+                    Supported formats: PDF, DOCX (Max size: 5MB) - <span className="text-red-500 font-semibold">Required</span>
                   </p>
                   
                   {isEditMode && existingApplication?.resumeFileName && !resumeFile && (
@@ -1234,14 +1246,14 @@ export default function JobDetails() {
                       }
                     }}
                     disabled={applying}
-                    className="flex-1 px-6 py-3 border-2 border-gray-300 dark:border-gray-600 hover:border-[#00EA72] font-semibold rounded-full transition-colors disabled:opacity-50"
+                    className="flex-1 px-6 py-3 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-full transition-colors shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleApply}
-                    disabled={applying || !coverLetter.trim()}
-                    className="flex-1 bg-[#00EA72] hover:bg-[#00D66C] disabled:bg-gray-400 text-black font-bold py-3 rounded-full transition-colors shadow-lg hover:shadow-xl disabled:opacity-50"
+                    disabled={applying || !coverLetter.trim() || (!isEditMode && !resumeFile) || (isEditMode && !resumeFile && !existingApplication?.resumeUrl)}
+                    className="flex-1 bg-[#00EA72] hover:bg-[#00D66C] disabled:bg-gray-400 text-black font-bold py-3 rounded-full transition-colors shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {applying ? (
                       <span className="flex items-center justify-center gap-2">

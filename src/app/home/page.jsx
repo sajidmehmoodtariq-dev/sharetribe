@@ -55,9 +55,7 @@ export default function HomePage() {
     dateOfBirth: '',
     address: '',
     profileImage: '',
-    summary: '',
-    currentJobTitle: '',
-    role: ''
+    summary: ''
   });
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
@@ -149,9 +147,7 @@ export default function HomePage() {
             dateOfBirth: formattedDob,
             address: data.user?.personalDetails?.address || '',
             profileImage: data.user?.personalDetails?.profileImage || '',
-            summary: data.user?.personalSummary?.summary || '',
-            currentJobTitle: data.user?.workExperience?.currentJobTitle || '',
-            role: data.user?.workExperience?.role || ''
+            summary: data.user?.personalSummary?.summary || ''
           });
         } else {
           router.push('/login/role-selection');
@@ -669,16 +665,30 @@ export default function HomePage() {
   const handleSignOut = async () => {
     try {
       const token = localStorage.getItem('token');
-      await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/logout`, { 
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
+      
+      // Try to call logout endpoint, but don't fail if it errors
+      if (token) {
+        try {
+          await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/logout`, { 
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+        } catch (logoutError) {
+          // Ignore logout endpoint errors - token might be expired
+          console.log('Logout endpoint error (ignored):', logoutError);
         }
-      });
+      }
+      
+      // Always clear token and redirect
       localStorage.removeItem('token');
       router.push('/login/role-selection');
     } catch (error) {
       console.error('Error signing out:', error);
+      // Even on error, ensure user is logged out
+      localStorage.removeItem('token');
+      router.push('/login/role-selection');
     }
   };
 
@@ -779,9 +789,7 @@ export default function HomePage() {
       dateOfBirth: formattedDob,
       address: user?.personalDetails?.address || '',
       profileImage: user?.personalDetails?.profileImage || '',
-      summary: user?.personalSummary?.summary || '',
-      currentJobTitle: user?.workExperience?.currentJobTitle || '',
-      role: user?.workExperience?.role || ''
+      summary: user?.personalSummary?.summary || ''
     });
     setSaveMessage('');
   };
@@ -1846,7 +1854,10 @@ export default function HomePage() {
                     >
                       <h3 className={`font-semibold ${getTextClassName()}`}>{user?.fullName || 'User'}</h3>
                       <p className={`text-sm ${getSubTextClassName()}`}>
-                        {user?.workExperience?.role || user?.workExperience?.currentJobTitle || 'Not specified'}
+                        {user?.role === 'employer' 
+                          ? (user?.businessSummary?.companyName || 'Employer')
+                          : (user?.workExperience?.industry || 'Industry not specified')
+                        }
                       </p>
                       <p className={`text-xs ${getSubTextClassName()}`}>
                         • {user?.personalDetails?.address || user?.address || 'Location not set'}
@@ -1914,41 +1925,25 @@ export default function HomePage() {
                   </p>
                 </div>
 
-                {/* Availability */}
-                {user?.availability && (
+                {/* Availability - Only for Job Seekers/Employees */}
+                {user?.role !== 'employer' && user?.availability && (
                   <div>
-                    <h4 className={`font-semibold mb-4 ${getTextClassName()}`}>My next available date to work is:</h4>
-                    {user.availability.dateRange?.from && user.availability.dateRange?.to ? (
+                    <h4 className={`font-semibold mb-4 ${getTextClassName()}`}>My available start date to work is:</h4>
+                    {user.availability.startDate ? (
                       <div className="space-y-4">
                         {/* Calendar Display */}
-                        <div className="flex items-center justify-between gap-2">
+                        <div className="flex justify-center">
                           {/* Start Date Calendar */}
-                          <div className={`w-[49%] p-6 rounded-lg text-center ${theme === 'dark' ? 'bg-gray-800/50' : 'bg-gray-50'}`}>
-                            <p className={`text-xs mb-3 font-medium ${getSubTextClassName()}`}>From</p>
-                            <Calendar className="w-10 h-10 mb-3 mx-auto text-[#00EA72]" />
-                            <p className={`text-base font-semibold ${getTextClassName()}`}>
-                              {new Date(user.availability.dateRange.from).toLocaleDateString('en-US', { weekday: 'long' })},
+                          <div className={`w-full max-w-[280px] p-6 rounded-lg text-center ${theme === 'dark' ? 'bg-gray-800/50' : 'bg-gray-50'}`}>
+                            <Calendar className="w-12 h-12 mb-3 mx-auto text-[#00EA72]" />
+                            <p className={`text-lg font-semibold ${getTextClassName()}`}>
+                              {new Date(user.availability.startDate).toLocaleDateString('en-US', { weekday: 'long' })},
                             </p>
-                            <p className={`text-base font-semibold ${getTextClassName()}`}>
-                              {new Date(user.availability.dateRange.from).toLocaleDateString('en-US', { month: 'long' })}
+                            <p className={`text-lg font-semibold ${getTextClassName()}`}>
+                              {new Date(user.availability.startDate).toLocaleDateString('en-US', { month: 'long' })} {new Date(user.availability.startDate).getDate()}
                             </p>
-                            <p className={`text-base font-semibold ${getTextClassName()}`}>
-                              {new Date(user.availability.dateRange.from).getDate()}
-                            </p>
-                          </div>
-                          
-                          {/* End Date Calendar */}
-                          <div className={`w-[49%] p-6 rounded-lg text-center ${theme === 'dark' ? 'bg-gray-800/50' : 'bg-gray-50'}`}>
-                            <p className={`text-xs mb-3 font-medium ${getSubTextClassName()}`}>To</p>
-                            <Calendar className="w-10 h-10 mb-3 mx-auto text-[#00EA72]" />
-                            <p className={`text-base font-semibold ${getTextClassName()}`}>
-                              {new Date(user.availability.dateRange.to).toLocaleDateString('en-US', { weekday: 'long' })},
-                            </p>
-                            <p className={`text-base font-semibold ${getTextClassName()}`}>
-                              {new Date(user.availability.dateRange.to).toLocaleDateString('en-US', { month: 'long' })}
-                            </p>
-                            <p className={`text-base font-semibold ${getTextClassName()}`}>
-                              {new Date(user.availability.dateRange.to).getDate()}
+                            <p className={`text-base ${getSubTextClassName()} mt-1`}>
+                              {new Date(user.availability.startDate).getFullYear()}
                             </p>
                           </div>
                         </div>
@@ -1974,6 +1969,33 @@ export default function HomePage() {
                       <p className={`text-xs mt-3 ${getSubTextClassName()}`}>
                         Notice Preference: <span className="font-medium capitalize">{user.availability.noticePreference.replace('-', ' ')}</span>
                       </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Skills - Only for Job Seekers/Employees */}
+                {user?.role !== 'employer' && user?.workExperience && (
+                  <div>
+                    <h4 className={`font-semibold mb-4 ${getTextClassName()}`}>Industry & Skills</h4>
+                    {user.workExperience.industry && (
+                      <div className="mb-4">
+                        <p className={`text-sm font-medium ${getTextClassName()} mb-2`}>Industry:</p>
+                        <span className="px-4 py-2 bg-[#00EA72] text-black rounded-full text-sm font-medium">
+                          {user.workExperience.industry}
+                        </span>
+                      </div>
+                    )}
+                    {user.workExperience.skills && user.workExperience.skills.length > 0 && (
+                      <div>
+                        <p className={`text-sm font-medium ${getTextClassName()} mb-2`}>Skills:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {user.workExperience.skills.map((skill, index) => (
+                            <span key={index} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </div>
                 )}
@@ -2259,7 +2281,7 @@ export default function HomePage() {
                                       {employee.fullName}
                                     </h4>
                                     <p className={`text-[12px] ${getSubTextClassName()} mb-1`}>
-                                      {employee.onboardingData?.workExperience?.currentJobTitle || employee.personalSummary?.summary?.substring(0, 30) || 'Job Seeker'}
+                                      {employee.onboardingData?.workExperience?.industry || 'Industry not specified'}
                                     </p>
                                     <p className={`text-[11px] ${getSubTextClassName()} mb-3`}>
                                       {employee.onboardingData?.personalDetails?.address || 'Location not specified'}
@@ -2958,34 +2980,6 @@ export default function HomePage() {
                   />
                 </div>
 
-                {/* Current Job Title - Only show if user has one */}
-                {(user?.workExperience?.currentJobTitle || editForm.currentJobTitle) && (
-                  <div>
-                    <Label htmlFor="currentJobTitle" className={`${getTextClassName()} mb-1.5 block font-medium`}>Current Job Title</Label>
-                    <Input
-                      id="currentJobTitle"
-                      value={editForm.currentJobTitle}
-                      onChange={(e) => setEditForm(prev => ({ ...prev, currentJobTitle: e.target.value }))}
-                      className={`${getInputClassName()} h-11`}
-                      placeholder="e.g. Senior Developer"
-                    />
-                  </div>
-                )}
-
-                {/* Role - Only show if user has one */}
-                {(user?.workExperience?.role || editForm.role) && (
-                  <div>
-                    <Label htmlFor="role" className={`${getTextClassName()} mb-1.5 block font-medium`}>Role</Label>
-                    <Input
-                      id="role"
-                      value={editForm.role}
-                      onChange={(e) => setEditForm(prev => ({ ...prev, role: e.target.value }))}
-                      className={`${getInputClassName()} h-11`}
-                      placeholder="e.g. Software Engineer"
-                    />
-                  </div>
-                )}
-
                 {/* Professional Summary */}
                 <div>
                   <Label htmlFor="summary" className={`${getTextClassName()} mb-1.5 block font-medium`}>Professional Summary</Label>
@@ -3621,7 +3615,6 @@ export default function HomePage() {
               <div className="text-center mb-6">
                 <a
                   href="/terms"
-                  target="_blank"
                   className={`text-sm ${getSubTextClassName()} hover:text-[#00EA72] underline`}
                 >
                   View Terms and Conditions
