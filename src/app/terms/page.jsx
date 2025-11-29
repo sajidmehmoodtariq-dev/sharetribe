@@ -17,7 +17,7 @@ export default function TermsAndConditionsPage() {
       />
       
       {/* Content Container */}
-      <div className="relative z-10 min-h-screen">
+      <div className="relative z-10 min-h-screen pb-24">
         <div className="w-full max-w-4xl mx-auto px-6 py-12">
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
@@ -198,10 +198,11 @@ export default function TermsAndConditionsPage() {
           </div>
 
           {/* Footer */}
-          <div className="text-center mt-8">
+          <div className="text-center mt-8 relative z-20">
             <button
               onClick={() => router.back()}
-              className="px-8 py-3 bg-[#00EA72] hover:bg-[#00D66C] text-black font-bold rounded-xl transition-all"
+              className="px-8 py-3 bg-[#00EA72] hover:bg-[#00D66C] text-black font-bold rounded-xl transition-all cursor-pointer"
+              style={{ pointerEvents: 'auto' }}
             >
               I Understand
             </button>
