@@ -25,6 +25,7 @@ export default function PersonalDetailsPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
+  const today = new Date().toISOString().split('T')[0];
 
   // Handle payment success from URL
   useEffect(() => {
@@ -114,6 +115,15 @@ export default function PersonalDetailsPage() {
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
+
+    // Prevent selecting a future date for DOB
+    if (name === 'dateOfBirth') {
+      if (value && value > today) {
+        alert('Date of birth cannot be in the future');
+        return;
+      }
+    }
+
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
@@ -175,6 +185,12 @@ export default function PersonalDetailsPage() {
           role: userRole || 'employee',
           selectedGoal,
         };
+      }
+
+      // Validate DOB: must not be in the future
+      if (requestBody.dateOfBirth && requestBody.dateOfBirth > today) {
+        alert('Date of birth cannot be in the future');
+        return;
       }
 
       // Save personal details (and create user if first time)
@@ -429,6 +445,7 @@ export default function PersonalDetailsPage() {
                   type="date"
                   value={formData.dateOfBirth}
                   onChange={handleInputChange}
+                  max={today}
                   className={getInputClassName() + " h-12 rounded-xl text-[15px]"}
                 />
               </div>
