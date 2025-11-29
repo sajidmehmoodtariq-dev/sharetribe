@@ -8,6 +8,16 @@ export default function TermsAndConditionsPage() {
   const { theme, getBackgroundStyle, getCardClassName, getTextClassName, getSubTextClassName } = useTheme();
   const router = useRouter();
 
+  const handleClose = () => {
+    // If opened in new tab/window, close it
+    if (window.opener) {
+      window.close();
+    } else {
+      // Otherwise go back
+      router.back();
+    }
+  };
+
   return (
     <>
       {/* Fixed Background */}
@@ -22,7 +32,7 @@ export default function TermsAndConditionsPage() {
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <button
-              onClick={() => router.back()}
+              onClick={handleClose}
               className={`flex items-center gap-2 ${getTextClassName()} hover:text-[#00EA72] transition-colors`}
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -200,7 +210,7 @@ export default function TermsAndConditionsPage() {
           {/* Footer */}
           <div className="text-center mt-8 relative z-20">
             <button
-              onClick={() => router.back()}
+              onClick={handleClose}
               className="px-8 py-3 bg-[#00EA72] hover:bg-[#00D66C] text-black font-bold rounded-xl transition-all cursor-pointer"
               style={{ pointerEvents: 'auto' }}
             >
